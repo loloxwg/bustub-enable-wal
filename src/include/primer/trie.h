@@ -8,6 +8,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -50,6 +51,15 @@ class TrieNode {
   explicit TrieNode(std::map<char, std::shared_ptr<const TrieNode>> children) : children_(std::move(children)) {}
 
   virtual ~TrieNode() = default;
+
+  auto Remove(char ch) -> bool {
+    auto node = this->children_.find(ch);
+    if (node != this->children_.end()) {
+      this->children_.erase(node);
+      return this->children_.empty();
+    }
+    return this->children_.empty();
+  }
 
   // Clone returns a copy of this TrieNode. If the TrieNode has a value, the value is copied. The return
   // type of this function is a unique_ptr to a TrieNode.
@@ -108,6 +118,19 @@ class Trie {
 
   // Create a new trie with the given root.
   explicit Trie(std::shared_ptr<const TrieNode> root) : root_(std::move(root)) {}
+
+  // Find the value associated with the given key.
+  // 1. If the key is not in the trie, return false.
+  // 2. If the key is in the trie but the type is mismatched, return false.
+  // 3. Otherwise, return true.
+  auto Find(std::string_view key) const -> bool;
+
+  // Helper Func for @Remove
+  // Remove the key from the TrieNode. If must check the key exists at the root.
+  // Also remove the corresponding the children.
+  // Return the deleted result TrieNode.
+  auto RemoveRecursive(std::string_view key, const std::shared_ptr<const TrieNode> &root) const
+      -> std::shared_ptr<TrieNode>;
 
  public:
   // Create an empty trie.
