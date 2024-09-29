@@ -51,7 +51,7 @@ class StringExpression : public AbstractExpression {
       case StringExpressionType::Upper:
         for (auto c : val) {
           if (c >= 'a' && c <= 'z') {
-            result += char('A' + c - 'a');
+            result += static_cast<char>('A' + c - 'a');
           } else {
             result += c;
           }
@@ -60,7 +60,7 @@ class StringExpression : public AbstractExpression {
       case StringExpressionType::Lower:
         for (auto c : val) {
           if (c >= 'A' && c <= 'Z') {
-            result += char('a' + c - 'A');
+            result += static_cast<char>('a' + c - 'A');
           } else {
             result += c;
           }

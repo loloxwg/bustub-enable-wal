@@ -85,15 +85,17 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
     if (node == cur_node->children_.end()) {
       if (pos == 0) {
         cur_node->children_[ch] = std::make_shared<const TrieNodeWithValue<T>>(std::make_shared<T>(std::move(value)));
-      } else {
-        cur_node->children_[ch] = std::make_shared<const TrieNode>();
+        break;
       }
+
+      cur_node->children_[ch] = std::make_shared<const TrieNode>();
       cur_node = std::const_pointer_cast<TrieNode>(cur_node->children_[ch]);
     } else if (pos == 0) {
       auto new_node =
           std::make_shared<TrieNodeWithValue<T>>(node->second->children_, std::make_shared<T>(std::move(value)));
       cur_node->children_[ch] = new_node;
       cur_node = new_node;
+      break;
     } else {
       auto new_node = std::shared_ptr<TrieNode>(node->second->Clone());
       cur_node->children_[ch] = new_node;
