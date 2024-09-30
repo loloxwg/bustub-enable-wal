@@ -11,9 +11,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/buffer_pool_manager.h"
+#include <cstddef>
+#include <cstdlib>
+#include <mutex>
 
+#include "common/config.h"
 #include "common/exception.h"
 #include "common/macros.h"
+#include "fmt/core.h"
+#include "storage/page/page.h"
 #include "storage/page/page_guard.h"
 
 namespace bustub {
@@ -22,9 +28,6 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
                                      LogManager *log_manager)
     : pool_size_(pool_size), disk_scheduler_(std::make_unique<DiskScheduler>(disk_manager)), log_manager_(log_manager) {
   // TODO(students): remove this line after you have implemented the buffer pool manager
-  throw NotImplementedException(
-      "BufferPoolManager is not implemented yet. If you have finished implementing BPM, please remove the throw "
-      "exception line in `buffer_pool_manager.cpp`.");
 
   // we allocate a consecutive memory space for the buffer pool
   pages_ = new Page[pool_size_];
@@ -38,21 +41,233 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 
 BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
 
-auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * { return nullptr; }
+auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
+  std::lock_guard<std::mutex> lock_guard(latch_);
+
+  frame_id_t fid;
+  if (!free_list_.empty()) {
+    fid = free_list_.front();
+    free_list_.pop_front();
+    *page_id = AllocatePage();
+  } else if (replacer_->Evict(&fid)) {
+    page_id_t old_pid = -1;
+    for (const auto iter : page_table_) {
+      if (iter.second == fid) {
+        old_pid = iter.first;
+      }
+    }
+
+    if (old_pid == -1) {
+      throw bustub::Exception(fmt::format("Some bugs for {}", fid));
+    }
+
+    page_table_.erase(old_pid);
+    Page *page = &pages_[fid];
+
+    if (page->is_dirty_) {
+      auto promise = disk_scheduler_->CreatePromise();
+      auto future = promise.get_future();
+      disk_scheduler_->Schedule({true, page->GetData(), old_pid, std::move(promise)});
+      if (!future.get()) {
+        throw bustub::Exception(fmt::format("Error for fetch page_id {}", old_pid));
+      }
+    }
+
+    page->is_dirty_ = false;
+    page->pin_count_ = 0;
+    *page_id = AllocatePage();
+    page->page_id_ = *page_id;
+  } else {
+    return nullptr;
+  }
+
+  page_table_.emplace(*page_id, fid);
+  replacer_->RecordAccess(fid);
+  replacer_->SetEvictable(fid, false);
+  Page *page = &pages_[fid];
+  page->page_id_ = *page_id;
+  page->is_dirty_ = false;
+  page->pin_count_ = 1;
+  return page;
+}
 
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
-  return nullptr;
+  std::lock_guard<std::mutex> lock_guard(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    throw bustub::Exception("Invalid page_id");
+  }
+
+  auto iter = page_table_.find(page_id);
+  frame_id_t fid;
+  if (iter != page_table_.end()) {
+    fid = iter->second;
+    replacer_->RecordAccess(fid);
+    replacer_->SetEvictable(fid, false);
+    Page *page = &pages_[fid];
+    page->pin_count_++;
+    return page;
+  }
+  if (!free_list_.empty()) {
+    fid = free_list_.front();
+    free_list_.pop_front();
+    page_table_.emplace(page_id, fid);
+  } else if (replacer_->Evict(&fid)) {
+    page_id_t old_pid = -1;
+    for (const auto iter : page_table_) {
+      if (iter.second == fid) {
+        old_pid = iter.first;
+      }
+    }
+
+    if (old_pid == -1) {
+      throw bustub::Exception(fmt::format("Some bugs for {}", fid));
+    }
+
+    page_table_.erase(old_pid);
+    Page *page = &pages_[fid];
+    if (page->page_id_ != old_pid) {
+      throw bustub::Exception(fmt::format("Some bugs for {}", old_pid));
+    }
+
+    if (page->is_dirty_) {
+      auto promise = disk_scheduler_->CreatePromise();
+      auto future = promise.get_future();
+      disk_scheduler_->Schedule({true, page->GetData(), old_pid, std::move(promise)});
+      if (!future.get()) {
+        throw bustub::Exception(fmt::format("Error for fetch page_id {}", page_id));
+      }
+    }
+
+    page->is_dirty_ = false;
+    page->pin_count_ = 0;
+    page->page_id_ = page_id;
+    page_table_.emplace(page_id, fid);
+  } else {
+    return nullptr;
+  }
+
+  replacer_->RecordAccess(fid);
+  replacer_->SetEvictable(fid, false);
+  Page *page = &pages_[fid];
+  BUSTUB_ENSURE(page->pin_count_ == 0, "New page's pin_count shoule be zero");
+  page->page_id_ = page_id;
+  page->pin_count_ = 1;
+  page->is_dirty_ = false;
+
+  auto promise = disk_scheduler_->CreatePromise();
+  auto future = promise.get_future();
+  disk_scheduler_->Schedule({false, page->GetData(), page_id, std::move(promise)});
+  if (!future.get()) {
+    throw bustub::Exception(fmt::format("Error for fetch page_id {}", page_id));
+  }
+
+  return page;
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
-  return false;
+  std::lock_guard<std::mutex> lock_guard(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    return false;
+  }
+
+  auto iter = page_table_.find(page_id);
+  if (iter == page_table_.end()) {
+    return false;
+  }
+
+  frame_id_t fid = iter->second;
+  Page *page = &pages_[fid];
+  if (is_dirty) {
+    page->is_dirty_ = is_dirty;
+  }
+  if (page_id != page->page_id_) {
+    throw bustub::Exception(fmt::format("Error page_id for FlushAllPages {}", page_id));
+  }
+  if (page->pin_count_ == 0) {
+    return false;
+  }
+
+  page->pin_count_--;
+  if (page->pin_count_ == 0) {
+    replacer_->SetEvictable(fid, true);
+  }
+  return true;
 }
 
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> lock_guard(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    return false;
+  }
 
-void BufferPoolManager::FlushAllPages() {}
+  auto iter = page_table_.find(page_id);
+  if (iter == page_table_.end()) {
+    return false;
+  }
 
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+  // page_table_.erase(iter);
+  frame_id_t fid = iter->second;
+  replacer_->SetEvictable(fid, true);
+  Page *page = &pages_[fid];
+
+  auto promise = disk_scheduler_->CreatePromise();
+  auto future = promise.get_future();
+  if (page_id != page->page_id_) {
+    throw bustub::Exception(fmt::format("Error page_id for FlushAllPages {}", page_id));
+  }
+  disk_scheduler_->Schedule({true, page->GetData(), page_id, std::move(promise)});
+  if (!future.get()) {
+    throw bustub::Exception(fmt::format("Error for FlushPage {}", page_id));
+  }
+  page->is_dirty_ = false;
+  return true;
+}
+
+void BufferPoolManager::FlushAllPages() {
+  std::lock_guard<std::mutex> lock_guard(latch_);
+
+  for (const auto iter : page_table_) {
+    page_id_t page_id = iter.first;
+    frame_id_t fid = iter.second;
+    // page_table_.erase(iter);
+    replacer_->SetEvictable(fid, true);
+    Page *page = &pages_[fid];
+
+    auto promise = disk_scheduler_->CreatePromise();
+    auto future = promise.get_future();
+    if (page_id != page->page_id_) {
+      throw bustub::Exception(fmt::format("Error page_id for FlushAllPages {}", page_id));
+    }
+    disk_scheduler_->Schedule({true, page->GetData(), page_id, std::move(promise)});
+    if (!future.get()) {
+      throw bustub::Exception(fmt::format("Error for FlushAllPages {}", page_id));
+    }
+    page->is_dirty_ = false;
+  }
+}
+
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  std::lock_guard<std::mutex> lock_guard(latch_);
+
+  auto iter = page_table_.find(page_id);
+  if (iter == page_table_.end()) {
+    return true;
+  }
+  frame_id_t fid = iter->second;
+  Page *page = &pages_[fid];
+  if (page->pin_count_ > 0) {
+    return false;
+  }
+
+  replacer_->SetEvictable(fid, true);
+  replacer_->Remove(fid);
+  page_table_.erase(iter);
+  free_list_.push_back(fid);
+  page->is_dirty_ = false;
+  page->page_id_ = INVALID_PAGE_ID;
+  DeallocatePage(page_id);
+  return true;
+}
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
