@@ -44,6 +44,12 @@ class LRUKNode {
     return reach_k;
   }
 
+  auto operator<(const LRUKNode &other) const -> bool { return history_.front() < other.history_.front(); }
+
+  LRUKNode() = default;
+  LRUKNode(const LRUKNode &other) = default;
+  auto operator=(const LRUKNode &other) -> LRUKNode & = default;
+
   std::list<size_t> history_;
   size_t k_;
   frame_id_t fid_;
