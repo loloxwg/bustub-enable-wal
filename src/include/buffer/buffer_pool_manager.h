@@ -15,7 +15,9 @@
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <shared_mutex>
 #include <unordered_map>
+#include <vector>
 
 #include "buffer/lru_k_replacer.h"
 #include "common/config.h"
@@ -192,6 +194,7 @@ class BufferPoolManager {
   std::list<frame_id_t> free_list_;
   /** This latch protects shared data structures. We recommend updating this comment to describe what it protects. */
   std::mutex latch_;
+  std::vector<std::shared_ptr<std::mutex>> page_latch_;
 
   /**
    * @brief Allocate a page on disk. Caller should acquire the latch before calling this function.

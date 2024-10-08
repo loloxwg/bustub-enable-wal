@@ -15,6 +15,7 @@
 #include <future>  // NOLINT
 #include <optional>
 #include <thread>  // NOLINT
+#include <vector>
 
 #include "common/channel.h"
 #include "storage/disk/disk_manager.h"
@@ -84,12 +85,14 @@ class DiskScheduler {
   auto CreatePromise() -> DiskSchedulerPromise { return {}; };
 
  private:
+  static constexpr int THREAD_NUMS = 16;
   /** Pointer to the disk manager. */
   DiskManager *disk_manager_ __attribute__((__unused__));
+  std::atomic<bool> stop_flag_{false};
   /** A shared queue to concurrently schedule and process requests. When the DiskScheduler's destructor is called,
    * `std::nullopt` is put into the queue to signal to the background thread to stop execution. */
   Channel<std::optional<DiskRequest>> request_queue_;
   /** The background thread responsible for issuing scheduled requests to the disk manager. */
-  std::optional<std::thread> background_thread_;
+  std::vector<std::thread> background_threads_;
 };
 }  // namespace bustub

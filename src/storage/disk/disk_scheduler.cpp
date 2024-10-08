@@ -12,9 +12,12 @@
 
 #include "storage/disk/disk_scheduler.h"
 #include <chrono>
+#include <memory>
 #include <optional>
+#include "common/channel.h"
 #include "common/config.h"
 #include "common/exception.h"
+#include "common/util/string_util.h"
 #include "storage/disk/disk_manager.h"
 
 namespace bustub {
@@ -22,18 +25,22 @@ namespace bustub {
 DiskScheduler::DiskScheduler(DiskManager *disk_manager) : disk_manager_(disk_manager) {
   // TODO(P1): remove this line after you have implemented the disk scheduler API
   // Spawn the background thread
-  background_thread_.emplace([&] { StartWorkerThread(); });
+  for (size_t i = 0; i < THREAD_NUMS; i++) {
+    background_threads_.emplace_back([&] { StartWorkerThread(); });
+  }
 }
 
 DiskScheduler::~DiskScheduler() {
   // Put a `std::nullopt` in the queue to signal to exit the loop
-  request_queue_.Put(std::nullopt);
-  if (background_thread_.has_value()) {
-    background_thread_->join();
+  for (size_t i = 0; i < THREAD_NUMS; i++) {
+    request_queue_.Put(std::nullopt);
+  }
+  for (size_t i = 0; i < THREAD_NUMS; i++) {
+    background_threads_[i].join();
   }
 }
 
-void DiskScheduler::Schedule(DiskRequest r) { request_queue_.Put(std::make_optional(std::move(r))); }
+void DiskScheduler::Schedule(DiskRequest r) { request_queue_.Put(std::move(r)); }
 
 void DiskScheduler::StartWorkerThread() {
   while (true) {
