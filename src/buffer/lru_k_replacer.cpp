@@ -69,13 +69,8 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
       cache_list_.push_back(node);
       node_store_.emplace(frame_id, std::prev(cache_list_.end()));
     } else {
-      if (access_type == AccessType::Scan) {
-        history_list_.push_front(node);
-        node_store_.emplace(frame_id, history_list_.begin());
-      } else {
-        history_list_.push_back(node);
-        node_store_.emplace(frame_id, std::prev(history_list_.end()));
-      }
+      history_list_.push_back(node);
+      node_store_.emplace(frame_id, std::prev(history_list_.end()));
     }
   } else {
     LRUKNode &node = *iter->second;
