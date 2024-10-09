@@ -51,13 +51,13 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   if (!free_list_.empty()) {
     fid = free_list_.front();
     free_list_.pop_front();
+    page_latch_[fid]->lock();
     *page_id = AllocatePage();
-    page_table_.emplace(*page_id, fid);    
+    page_table_.emplace(*page_id, fid);
     replacer_->RecordAccess(fid);
     replacer_->SetEvictable(fid, false);
-    page_latch_[fid]->lock();
-    latch_.unlock();
     Page *page = &pages_[fid];
+    latch_.unlock();
     page->page_id_ = *page_id;
     page->is_dirty_ = false;
     page->pin_count_ = 1;
@@ -75,15 +75,16 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
     if (old_pid == -1) {
       throw bustub::Exception(fmt::format("Some bugs for {}", fid));
     }
-
+    page_latch_[fid]->lock();
     page_table_.erase(old_pid);
     *page_id = AllocatePage();
     page_table_.emplace(*page_id, fid);
     replacer_->RecordAccess(fid);
     replacer_->SetEvictable(fid, false);
-    page_latch_[fid]->lock();
-    latch_.unlock();
+
     Page *page = &pages_[fid];
+    latch_.unlock();
+
     if (page->is_dirty_) {
       auto promise = disk_scheduler_->CreatePromise();
       auto future = promise.get_future();
@@ -113,12 +114,12 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, AccessType access_type) -> 
   frame_id_t fid;
   if (iter != page_table_.end()) {
     fid = iter->second;
+    page_latch_[fid]->lock();
     replacer_->RecordAccess(fid, access_type);
     replacer_->SetEvictable(fid, false);
-    page_latch_[fid]->lock();
-    latch_.unlock();
     Page *page = &pages_[fid];
     page->pin_count_++;
+    latch_.unlock();
     page_latch_[fid]->unlock();
     return page;
   }
@@ -126,10 +127,10 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, AccessType access_type) -> 
   if (!free_list_.empty()) {
     fid = free_list_.front();
     free_list_.pop_front();
+    page_latch_[fid]->lock();
     page_table_.emplace(page_id, fid);
     replacer_->RecordAccess(fid, access_type);
     replacer_->SetEvictable(fid, false);
-    page_latch_[fid]->lock();
     latch_.unlock();
   } else if (replacer_->Evict(&fid)) {
     page_id_t old_pid = -1;
@@ -143,15 +144,15 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, AccessType access_type) -> 
       throw bustub::Exception(fmt::format("Some bugs for {}", fid));
     }
 
+    page_latch_[fid]->lock();
     page_table_.erase(old_pid);
     page_table_.emplace(page_id, fid);
     replacer_->RecordAccess(fid, access_type);
     replacer_->SetEvictable(fid, false);
-    
-    page_latch_[fid]->lock();
-    latch_.unlock();
-    
+
     Page *page = &pages_[fid];
+    latch_.unlock();
+
     if (page->page_id_ != old_pid) {
       throw bustub::Exception(fmt::format("Some bugs for {}", old_pid));
     }
@@ -168,12 +169,12 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, AccessType access_type) -> 
     page->is_dirty_ = false;
     page->pin_count_ = 0;
     page->page_id_ = page_id;
+
     // page_latch_[fid]->unlock();
   } else {
     latch_.unlock();
     return nullptr;
   }
-
   // page_latch_[fid]->lock();
   Page *page = &pages_[fid];
   BUSTUB_ENSURE(page->pin_count_ == 0, "New page's pin_count shoule be zero");
@@ -204,10 +205,8 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   }
 
   frame_id_t fid = iter->second;
-  
   page_latch_[fid]->lock();
-  latch_.unlock();
-  
+
   Page *page = &pages_[fid];
   if (is_dirty) {
     page->is_dirty_ = is_dirty;
@@ -216,6 +215,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
     throw bustub::Exception(fmt::format("Error page_id for FlushAllPages {}", page_id));
   }
   if (page->pin_count_ == 0) {
+    latch_.unlock();
     page_latch_[fid]->unlock();
     return false;
   }
@@ -224,6 +224,7 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
   if (page->pin_count_ == 0) {
     replacer_->SetEvictable(fid, true);
   }
+  latch_.unlock();
   page_latch_[fid]->unlock();
   return true;
 }
@@ -245,7 +246,7 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
 
   page_latch_[fid]->lock();
   latch_.unlock();
-  
+
   Page *page = &pages_[fid];
 
   auto promise = disk_scheduler_->CreatePromise();
