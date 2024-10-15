@@ -85,7 +85,7 @@ class DiskScheduler {
   auto CreatePromise() -> DiskSchedulerPromise { return {}; };
 
  private:
-  static constexpr int THREAD_NUMS = 16;
+  static constexpr int THREAD_NUMS = 1;
   /** Pointer to the disk manager. */
   DiskManager *disk_manager_ __attribute__((__unused__));
   std::atomic<bool> stop_flag_{false};
