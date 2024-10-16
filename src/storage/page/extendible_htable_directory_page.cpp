@@ -23,6 +23,7 @@ namespace bustub {
 void ExtendibleHTableDirectoryPage::Init(uint32_t max_depth) {
   max_depth_ = max_depth;
   global_depth_ = 0;
+  std::fill(bucket_page_ids_, bucket_page_ids_ + HTABLE_DIRECTORY_ARRAY_SIZE, INVALID_PAGE_ID);
 }
 
 auto ExtendibleHTableDirectoryPage::HashToBucketIndex(uint32_t hash) const -> uint32_t {
@@ -50,6 +51,8 @@ auto ExtendibleHTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) const
 
 auto ExtendibleHTableDirectoryPage::GetGlobalDepth() const -> uint32_t { return global_depth_; }
 
+auto ExtendibleHTableDirectoryPage::GetMaxDepth() const -> uint32_t { return max_depth_; }
+
 void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
   for (uint32_t i = 0; i < Size(); i++) {
     local_depths_[(1 << global_depth_) + i] = local_depths_[i];
@@ -58,7 +61,11 @@ void ExtendibleHTableDirectoryPage::IncrGlobalDepth() {
   global_depth_++;
 }
 
-void ExtendibleHTableDirectoryPage::DecrGlobalDepth() { global_depth_--; }
+void ExtendibleHTableDirectoryPage::DecrGlobalDepth() {
+  if (global_depth_ > 0) {
+    global_depth_--;
+  }
+}
 
 auto ExtendibleHTableDirectoryPage::CanShrink() -> bool {
   for (uint32_t i = 0; i < Size(); i++) {

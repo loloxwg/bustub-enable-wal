@@ -91,6 +91,59 @@ TEST(ExtendibleHTableTest, InsertTest2) {
 }
 
 // NOLINTNEXTLINE
+TEST(ExtendibleHTableTest, InsertTest3) {
+  auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_unique<BufferPoolManager>(50, disk_mgr.get());
+
+  DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 2, 3, 2);
+
+  // insert some values
+  //  000 0
+  //  100 4
+  // 1000 8
+  // 1100 12
+  //  010  2
+  //  110  6
+  //  001  1
+  //  011  3
+  //  101  5
+  int keys[] = {0, 4, 8, 12, 2, 6, 1, 3, 5, 11, 9};
+  int miss[] = {7};
+  for (auto key : keys) {
+    bool inserted = ht.Insert(key, key);
+    ASSERT_TRUE(inserted);
+    std::vector<int> res;
+    ht.GetValue(key, &res);
+    ASSERT_EQ(1, res.size());
+    ASSERT_EQ(key, res[0]);
+    ht.VerifyIntegrity();
+  }
+
+  ht.VerifyIntegrity();
+
+  // check that they were actually inserted
+  for (auto key : keys) {
+    std::vector<int> res;
+    bool got_value = ht.GetValue(key, &res);
+    ASSERT_TRUE(got_value);
+    ASSERT_EQ(1, res.size());
+    ASSERT_EQ(key, res[0]);
+  }
+
+  ht.VerifyIntegrity();
+
+  // try to get some keys that don't exist/were not inserted
+  for (auto key : miss) {
+    std::vector<int> res;
+    bool got_value = ht.GetValue(key, &res);
+    ASSERT_FALSE(got_value);
+    ASSERT_EQ(0, res.size());
+  }
+
+  ht.VerifyIntegrity();
+}
+
+// NOLINTNEXTLINE
 TEST(ExtendibleHTableTest, RemoveTest1) {
   auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_unique<BufferPoolManager>(50, disk_mgr.get());
@@ -153,6 +206,21 @@ TEST(ExtendibleHTableTest, RemoveTest1) {
     ASSERT_EQ(0, res.size());
   }
 
+  ht.VerifyIntegrity();
+}
+
+TEST(ExtendibleHTableTest, DebugTest) {
+  auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_unique<BufferPoolManager>(3, disk_mgr.get());
+  DiskExtendibleHashTable<int, int, IntComparator> ht("debug_test", bpm.get(), IntComparator(), HashFunction<int>(), 9,
+                                                      9, 255);
+  for (int i = 1; i <= 5; i++) {
+    ht.Insert(i, i);
+  }
+  std::vector<int> remove_order{1, 1, 5, 5, 3, 4};
+  for (auto i : remove_order) {
+    ht.Remove(i);
+  }
   ht.VerifyIntegrity();
 }
 

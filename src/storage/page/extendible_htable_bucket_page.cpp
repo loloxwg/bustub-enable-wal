@@ -87,6 +87,11 @@ auto ExtendibleHTableBucketPage<K, V, KC>::EntryAt(uint32_t bucket_idx) const ->
 }
 
 template <typename K, typename V, typename KC>
+void ExtendibleHTableBucketPage<K, V, KC>::Clear() {
+  size_ = 0;
+}
+
+template <typename K, typename V, typename KC>
 auto ExtendibleHTableBucketPage<K, V, KC>::Size() const -> uint32_t {
   return size_;
 }

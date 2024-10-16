@@ -110,6 +110,8 @@ class DiskExtendibleHashTable {
    */
   auto Hash(K key) const -> uint32_t;
 
+  void Merge(ExtendibleHTableDirectoryPage *directory, const std::vector<uint32_t> &bucket_idx_vec);
+
   auto InsertToNewDirectory(ExtendibleHTableHeaderPage *header, uint32_t directory_idx, uint32_t hash, const K &key,
                             const V &value) -> bool;
 
