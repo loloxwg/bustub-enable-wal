@@ -12,6 +12,7 @@
 
 #include <iostream>
 
+#include "common/config.h"
 #include "container/disk/hash/disk_extendible_hash_table.h"
 
 namespace bustub {
@@ -59,6 +60,10 @@ void DiskExtendibleHashTable<K, V, KC>::PrintHT() const {
 
     for (uint32_t idx2 = 0; idx2 < directory->Size(); idx2++) {
       page_id_t bucket_page_id = directory->GetBucketPageId(idx2);
+      if (bucket_page_id == INVALID_PAGE_ID) {
+        std::cout << "Bucket " << idx2 << ", page id: " << bucket_page_id << "\n";
+        continue;
+      }
       BasicPageGuard bucket_guard = bpm_->FetchPageBasic(bucket_page_id);
       auto *bucket = bucket_guard.As<ExtendibleHTableBucketPage<K, V, KC>>();
 

@@ -13,7 +13,7 @@ BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
 }
 
 void BasicPageGuard::Drop() {
-  if (bpm_ != nullptr) {
+  if (bpm_ != nullptr && page_ != nullptr) {
     bpm_->UnpinPage(this->PageId(), this->is_dirty_);
   }
   this->bpm_ = nullptr;

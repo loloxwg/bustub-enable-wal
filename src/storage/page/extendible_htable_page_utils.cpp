@@ -22,7 +22,7 @@ void ExtendibleHTableHeaderPage::PrintHeader() const {
   LOG_DEBUG("======== HEADER (max_depth_: %u) ========", max_depth_);
   LOG_DEBUG("| directory_idx | page_id |");
   for (uint32_t idx = 0; idx < static_cast<uint32_t>(1 << max_depth_); idx++) {
-    LOG_DEBUG("|    %u    |    %u    |", idx, directory_page_ids_[idx]);
+    LOG_DEBUG("|    %u    |    %d    |", idx, directory_page_ids_[idx]);
   }
   LOG_DEBUG("======== END HEADER ========");
 }
@@ -31,7 +31,7 @@ void ExtendibleHTableDirectoryPage::PrintDirectory() const {
   LOG_DEBUG("======== DIRECTORY (global_depth_: %u) ========", global_depth_);
   LOG_DEBUG("| bucket_idx | page_id | local_depth |");
   for (uint32_t idx = 0; idx < static_cast<uint32_t>(0x1 << global_depth_); idx++) {
-    LOG_DEBUG("|    %u    |    %u    |    %u    |", idx, bucket_page_ids_[idx], local_depths_[idx]);
+    LOG_DEBUG("|    %u    |    %d    |    %u    |", idx, bucket_page_ids_[idx], local_depths_[idx]);
   }
   LOG_DEBUG("================ END DIRECTORY ================");
 }
