@@ -11,6 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include <_types/_uint32_t.h>
+#include <cstddef>
+#include <cstdlib>
+#include <exception>
 #include <thread>  // NOLINT
 #include <vector>
 
@@ -189,7 +192,6 @@ TEST(ExtendibleHTableTest, RemoveTest1) {
   }
 
   ht.VerifyIntegrity();
-  ht.PrintHT();
   // remove the keys we inserted
   for (int i = 0; i < num_keys; i++) {
     bool removed = ht.Remove(i);
@@ -264,12 +266,10 @@ TEST(ExtendibleHTableTest, RemoveTest2) {
   }
 
   // try to remove some keys to merge
-  ht.PrintHT();
   for (auto key : keys) {
     ASSERT_TRUE(ht.Remove(key));
     std::cout << "After Remove ====== " << key << " ======" << std::endl;
     ht.VerifyIntegrity();
-    ht.PrintHT();
   }
 }
 
@@ -330,7 +330,6 @@ TEST(ExtendibleHTableTest, RemoveTest3) {
   // 6  0110
   // 14 1110
   res.clear();
-  ht.PrintHT();
   ASSERT_TRUE(ht.Remove(4, nullptr));
   got_value = ht.GetValue(4, &res);
   ASSERT_FALSE(got_value);
@@ -338,19 +337,80 @@ TEST(ExtendibleHTableTest, RemoveTest3) {
   ht.VerifyIntegrity();
 }
 
-TEST(ExtendibleHTableTest, DebugTest) {
+TEST(ExtendibleHTableTest, DebugTest9) {
   auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
   auto bpm = std::make_unique<BufferPoolManager>(3, disk_mgr.get());
   DiskExtendibleHashTable<int, int, IntComparator> ht("debug_test", bpm.get(), IntComparator(), HashFunction<int>(), 9,
-                                                      9, 255);
-  for (int i = 1; i <= 5; i++) {
-    ht.Insert(i, i);
+                                                      9, 511);
+  std::set<int> keys;
+
+  for (int i = 0; i <= 999; i++) {
+    ASSERT_TRUE(ht.Insert(i, i));
+    // ASSERT_TRUE(ht.Remove(10));
   }
-  std::vector<int> remove_order{1, 1, 5, 5, 3, 4};
-  for (auto i : remove_order) {
-    ht.Remove(i);
+  for (int i = 0; i <= 499; i++) {
+    ASSERT_TRUE(ht.Remove(i));
+    // ASSERT_TRUE(ht.Remove(10));
   }
+  for (int i = 1000; i <= 1499; i++) {
+    ASSERT_TRUE(ht.Insert(i, i));
+    // ASSERT_TRUE(ht.Remove(10));
+  }
+  for (int i = 500; i <= 999; i++) {
+    ASSERT_TRUE(ht.Remove(i));
+    // ASSERT_TRUE(ht.Remove(10));
+  }
+  for (int i = 0; i <= 499; i++) {
+    ASSERT_TRUE(ht.Insert(i, i));
+    // ASSERT_TRUE(ht.Remove(10));
+  }
+  for (int i = 1000; i <= 1499; i++) {
+    ASSERT_TRUE(ht.Remove(i));
+    // ASSERT_TRUE(ht.Remove(10));
+  }
+  for (int i = 0; i <= 499; i++) {
+    ASSERT_TRUE(ht.Remove(i));
+    // ASSERT_TRUE(ht.Remove(10));
+  }
+  ht.PrintHT();
   ht.VerifyIntegrity();
+}
+
+TEST(ExtendibleHTableTest, DebugTest) {
+  auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_unique<BufferPoolManager>(34, disk_mgr.get());
+  DiskExtendibleHashTable<int, int, IntComparator> ht("debug_test", bpm.get(), IntComparator(), HashFunction<int>(), 9,
+                                                      9, 2);
+  std::set<int> keys;
+
+  size_t max_num = 64;
+
+  for (int i = 1; i < 10000; i++) {
+    auto r = rand() % 1000;
+    if ((r % 3 == 0 || r % 7 == 0 || r % 11 == 0) && !keys.empty() && keys.size() >= max_num - 5) {
+      std::vector<int> vec(keys.begin(), keys.end());
+      auto s = rand() % vec.size();
+      ASSERT_TRUE(ht.Remove(vec[s]));
+      auto it = keys.find(vec[s]);
+      keys.erase(it);
+    } else {
+      if (ht.Insert(r, r)) {
+        keys.insert(r);
+      } else if (keys.find(r) == keys.end()) {
+        if (keys.size() < max_num) {
+          std::cout << keys.size() << "<>" << max_num << " " << r << std::endl;
+          ht.PrintHT();
+          std::terminate();
+        }
+      }
+    }
+    ht.VerifyIntegrity();
+  }
+
+  for (auto it : keys) {
+    ASSERT_TRUE(ht.Remove(it));
+    ht.VerifyIntegrity();
+  }
 }
 
 TEST(ExtendibleHTableTest, DebugTest2) {
