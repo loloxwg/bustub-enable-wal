@@ -12,16 +12,58 @@
 
 #include <memory>
 
+#include "common/rid.h"
 #include "execution/executors/insert_executor.h"
+#include "storage/table/tuple.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx) {
+    plan_ = plan;
+    child_executor_ = std::move(child_executor);
+    auto catalog = GetExecutorContext()->GetCatalog();
+    table_info_ = catalog->GetTable(plan_->table_oid_);
+    heap_ = table_info_->table_.get();
+    indexs_ = catalog->GetTableIndexes(table_info_->name_);
+  }
 
-void InsertExecutor::Init() { throw NotImplementedException("InsertExecutor is not implemented"); }
+void InsertExecutor::Init() { 
+  child_executor_->Init();
+}
 
-auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
+auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { 
+  if (called_) {
+    return false;
+  }
+  called_ = true;
+  Tuple insert_tuple;
+  RID insert_rid;
+  int count = 0;
+  while (child_executor_->Next(&insert_tuple, &insert_rid)) {
+    TupleMeta meta{0, false};
+    auto result_rid = heap_->InsertTuple(meta, insert_tuple);
+    if (!result_rid.has_value()) {
+      break;
+    }
+    
+    for (auto index : indexs_) {
+      auto schema = index->index_->GetKeySchema();
+      auto col_idx = table_info_->schema_.GetColIdx(schema->GetColumn(0).GetName());
+      auto value = insert_tuple.GetValue(&table_info_->schema_, col_idx);
+      Tuple key({value}, schema);
+      index->index_->InsertEntry(key, result_rid.value(), nullptr);
+    }
+    count++;
+  }
+
+  std::vector<Value> values{};
+  values.push_back(ValueFactory::GetIntegerValue(count));
+
+  *tuple = Tuple(values, &GetOutputSchema());
+  return true;
+}
 
 }  // namespace bustub
