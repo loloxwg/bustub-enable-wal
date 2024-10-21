@@ -10,7 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <_types/_uint32_t.h>
 #include <memory>
+#include <vector>
 
 #include "common/rid.h"
 #include "execution/executors/insert_executor.h"
@@ -51,9 +53,11 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     
     for (auto index : indexs_) {
       auto schema = index->index_->GetKeySchema();
-      auto col_idx = table_info_->schema_.GetColIdx(schema->GetColumn(0).GetName());
-      auto value = insert_tuple.GetValue(&table_info_->schema_, col_idx);
-      Tuple key({value}, schema);
+      std::vector<uint32_t> col_idxs;
+      for (const auto &col : schema->GetColumns()) {
+        col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
+      }
+      Tuple key = insert_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
       index->index_->InsertEntry(key, result_rid.value(), nullptr);
     }
     count++;

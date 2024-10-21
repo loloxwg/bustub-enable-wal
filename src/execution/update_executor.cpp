@@ -61,11 +61,13 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       break;
     }
     for (auto index : indexs_) {
-
       auto schema = index->index_->GetKeySchema();
-      auto col_idx = table_info_->schema_.GetColIdx(schema->GetColumn(0).GetName());
-      Tuple delete_key({i_tuple.GetValue(&table_info_->schema_, col_idx)}, schema);
-      Tuple insert_key({new_tuple.GetValue(&table_info_->schema_, col_idx)}, schema);
+      std::vector<uint32_t> col_idxs;
+      for (const auto &col : schema->GetColumns()) {
+        col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
+      }
+      Tuple delete_key = i_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
+      Tuple insert_key = new_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
 
       index->index_->DeleteEntry(delete_key, i_rid, nullptr);
       if (!index->index_->InsertEntry(insert_key, insert_rid.value(), nullptr)) {

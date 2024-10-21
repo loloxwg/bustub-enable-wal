@@ -47,9 +47,11 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     table_heap_->UpdateTupleMeta(meta, i_rid);
     for (auto index : indexs_) {
       auto schema = index->index_->GetKeySchema();
-      auto col_idx = table_info_->schema_.GetColIdx(schema->GetColumn(0).GetName());
-      auto value = i_tuple.GetValue(&table_info_->schema_, col_idx);
-      Tuple key({value}, schema);
+      std::vector<uint32_t> col_idxs;
+      for (const auto &col : schema->GetColumns()) {
+        col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
+      }
+      Tuple key = i_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
       index->index_->DeleteEntry(key, i_rid, nullptr);
     }
     count++;
