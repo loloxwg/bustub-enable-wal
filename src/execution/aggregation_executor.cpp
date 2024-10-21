@@ -34,6 +34,7 @@ void AggregationExecutor::Init() {
   child_executor_->Init();
   Tuple tuple;
   RID rid;
+  aht_->Clear();
   while (child_executor_->Next(&tuple, &rid)) {
     AggregateValue agg_value;
     AggregateKey agg_key;
