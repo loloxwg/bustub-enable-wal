@@ -81,7 +81,7 @@ class SimpleAggregationHashTable {
             continue;
           }
           if (result->aggregates_[i].IsNull()) {
-            result->aggregates_[i] = input.aggregates_[i];
+            result->aggregates_[i] = ValueFactory::GetIntegerValue(1);
           } else {
             result->aggregates_[i] = result->aggregates_[i].Add(ValueFactory::GetIntegerValue(1));
           }

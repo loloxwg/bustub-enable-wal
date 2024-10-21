@@ -54,20 +54,17 @@ void AggregationExecutor::Init() {
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
   if (!has_value_) {
     has_value_ = true;
-    *tuple = Tuple{aht_->GenerateInitialAggregateValue().aggregates_, &GetOutputSchema()};
-    *rid = RID{0};
-    return true;
+    if (plan_->group_bys_.empty()) {
+      *tuple = Tuple{aht_->GenerateInitialAggregateValue().aggregates_, &GetOutputSchema()};
+      *rid = RID{0};
+      return true;
+    }
+    return false;
   }
   if (*aht_iterator_ == aht_->End()) {
     return false;
   }
-  if (plan_->agg_types_.size() == 1 && plan_->agg_types_[0] ==  AggregationType::CountStarAggregate) {
-    auto val = aht_iterator_->Val();
-    *tuple = Tuple{val.aggregates_, &GetOutputSchema()};
-    *rid = RID{0};
-    ++(*aht_iterator_);
-    return true;  
-  }
+
   auto key = aht_iterator_->Key();
   auto val = aht_iterator_->Val();
   std::vector<Value> values;
