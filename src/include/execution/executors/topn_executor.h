@@ -12,7 +12,10 @@
 
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <queue>
 #include <utility>
 #include <vector>
 
@@ -59,9 +62,20 @@ class TopNExecutor : public AbstractExecutor {
   auto GetNumInHeap() -> size_t;
 
  private:
+  struct TopNItem {
+    Tuple tuple_;
+    RID rid_;
+  };
+
+
+  using CmpType = std::function<bool(const TopNItem&, const TopNItem&)>;
   /** The TopN plan node to be executed */
   const TopNPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  std::unique_ptr<std::priority_queue<TopNItem, std::vector<TopNItem>, CmpType>> queues_;
+  std::vector<TopNItem> items_;
+  int offset_;
+  size_t limit_;
 };
 }  // namespace bustub
