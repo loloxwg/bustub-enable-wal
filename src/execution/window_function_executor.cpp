@@ -9,6 +9,7 @@
 #include "execution/plans/aggregation_plan.h"
 #include "execution/plans/window_plan.h"
 #include "storage/table/tuple.h"
+#include "type/value.h"
 
 namespace bustub {
 
@@ -76,8 +77,17 @@ void WindowFunctionExecutor::Init() {
         for (const auto &expr : win_func.second.partition_by_) {
           key.group_bys_.emplace_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
         }
-        auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
-        values.emplace_back(table->InsertCombine(key, value));
+        if (win_func.second.type_ == WindowFunctionType::Rank) {
+          std::vector<Value> agg_vals;
+          for (const auto& pair : win_func.second.order_by_) {
+            agg_vals.emplace_back(pair.second->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
+          }
+          values.emplace_back(table->InsertCombine(key, agg_vals));
+        } else {
+          auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
+          values.emplace_back(table->InsertCombine(key, {value}));
+        }
+        
       }
   
       result_tuples_.emplace_back(Tuple(values, &GetOutputSchema()));
@@ -96,7 +106,7 @@ void WindowFunctionExecutor::Init() {
           key.group_bys_.emplace_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
         }
         auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
-        table->InsertCombine(key, value);
+        table->InsertCombine(key, {value});
       }
       offset_++;    
     }

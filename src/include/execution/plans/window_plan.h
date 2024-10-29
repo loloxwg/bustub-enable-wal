@@ -13,6 +13,7 @@
 #pragma once
 
 #include <_types/_uint32_t.h>
+#include <_types/_uint64_t.h>
 #include <memory>
 #include <string>
 #include <map>
@@ -28,6 +29,7 @@
 #include "execution/plans/aggregation_plan.h"
 #include "fmt/format.h"
 #include "storage/table/tuple.h"
+#include "type/type.h"
 #include "type/type_id.h"
 #include "type/value.h"
 #include "type/value_factory.h"
@@ -145,13 +147,13 @@ class SimpleWindowHashTable {
    * @param[out] result The output aggregate value
    * @param input The input value
    */
-  void CombineAggregateValues(Value *result, const Value &input) {
+  void CombineAggregateValues(Value *result, const std::vector<Value> &input) {
     switch (agg_type_) {
       case WindowFunctionType::CountStarAggregate:
         *result = result->Add(ValueFactory::GetIntegerValue(1));
         break;
       case WindowFunctionType::CountAggregate:
-        if (input.IsNull()) {
+        if (input[0].IsNull()) {
           return;
         }
         if (result->IsNull()) {
@@ -161,39 +163,41 @@ class SimpleWindowHashTable {
         }
         break;
       case WindowFunctionType::SumAggregate:
-        if (input.IsNull()) {
+        if (input[0].IsNull()) {
           return;
         }
         if (result->IsNull()) {
-          *result = input;
+          *result = input[0];
         } else {
-          *result = result->Add(input);
+          *result = result->Add(input[0]);
         }
         break;
       case WindowFunctionType::MinAggregate:
-        if (input.IsNull()) {
+        if (input[0].IsNull()) {
           return;
         }
         if (result->IsNull()) {
-          *result = input;
+          *result = input[0];
         } else {
-          *result = result->Min(input);
+          *result = result->Min(input[0]);
         }
         break;
       case WindowFunctionType::MaxAggregate:
-        if (input.IsNull()) {
+        if (input[0].IsNull()) {
           return;
         }
         if (result->IsNull()) {
-          *result = input;
+          *result = input[0];
         } else {
-          *result = result->Max(input);
+          *result = result->Max(input[0]);
         }
         break;
       case WindowFunctionType::Rank:
-        if (input.IsNull() || rank_before_.GetTypeId() == TypeId::INVALID || input.CompareEquals(rank_before_) == CmpBool::CmpFalse) {
-          *result = result->Add(ValueFactory::GetIntegerValue(1));
+        count_++;
+        if (rank_before_.empty() || !RankEqual(input, rank_before_)) {
+          *result = ValueFactory::GetIntegerValue(count_);
         }
+        
         rank_before_ = input;
         break;  
     }
@@ -204,7 +208,7 @@ class SimpleWindowHashTable {
    * @param agg_key the key to be inserted
    * @param agg_val the value to be inserted
    */
-  auto InsertCombine(const AggregateKey &agg_key, const Value &agg_val) -> Value {
+  auto InsertCombine(const AggregateKey &agg_key, const std::vector<Value> &agg_val) -> Value {
     if (ht_.count(agg_key) == 0) {
       ht_.insert({agg_key, GenerateInitialAggregateValue()});
     }
@@ -215,6 +219,15 @@ class SimpleWindowHashTable {
 
   auto ResultValue(const AggregateKey &agg_key) -> Value {
     return ht_[agg_key];
+  }
+
+  auto RankEqual(const std::vector<Value> &v1, const std::vector<Value>& v2) -> bool {
+    for (uint32_t i = 0; i < v1.size(); i++) {
+      if (v1[i].CompareEquals(v2[i]) == CmpBool::CmpFalse) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -228,7 +241,8 @@ class SimpleWindowHashTable {
   /** The aggregate expressions that we have */
   //const AbstractExpressionRef &agg_expr_;
   /** The types of aggregations that we have */
-  Value rank_before_;
+  std::vector<Value> rank_before_;
+  uint32_t count_{0};
   const WindowFunctionType agg_type_{};
 };
 
