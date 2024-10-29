@@ -12,18 +12,24 @@
 
 #pragma once
 
+#include <_types/_uint32_t.h>
 #include <memory>
 #include <string>
+#include <map>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "binder/bound_order_by.h"
+#include "catalog/column.h"
 #include "common/util/hash_util.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "execution/plans/aggregation_plan.h"
 #include "fmt/format.h"
 #include "storage/table/tuple.h"
+#include "type/value.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -98,6 +104,123 @@ class WindowFunctionPlanNode : public AbstractPlanNode {
 
  protected:
   auto PlanNodeToString() const -> std::string override;
+};
+
+class SimpleWindowHashTable {
+ public:
+  /**
+   * Construct a new SimpleAggregationHashTable instance.
+   * @param agg_exprs the aggregation expressions
+   * @param agg_types the types of aggregations
+   */
+  explicit SimpleWindowHashTable(const WindowFunctionType &agg_type)
+      : agg_type_{agg_type} {}
+
+  SimpleWindowHashTable(const SimpleWindowHashTable& other) = default;      
+
+  /** @return The initial aggregate value for this aggregation executor */
+  auto GenerateInitialAggregateValue() -> Value {
+    switch (agg_type_) {
+      case WindowFunctionType::CountStarAggregate:
+        // Count start starts at zero.
+        return ValueFactory::GetIntegerValue(0);
+      case WindowFunctionType::CountAggregate:
+      case WindowFunctionType::SumAggregate:
+      case WindowFunctionType::MinAggregate:
+      case WindowFunctionType::MaxAggregate:
+        // Others starts at null.
+        return ValueFactory::GetNullValueByType(TypeId::INTEGER);
+      case WindowFunctionType::Rank:
+        return ValueFactory::GetIntegerValue(0);   
+    }
+
+    return {};
+  }
+
+  /**
+   * TODO(Student)
+   *
+   * Combines the input into the aggregation result.
+   * @param[out] result The output aggregate value
+   * @param input The input value
+   */
+  void CombineAggregateValues(Value *result, const Value &input) {
+    switch (agg_type_) {
+      case WindowFunctionType::CountStarAggregate:
+        result->Add(ValueFactory::GetIntegerValue(1));
+        break;
+      case WindowFunctionType::CountAggregate:
+        if (input.IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = ValueFactory::GetIntegerValue(1);
+        } else {
+          *result = result->Add(ValueFactory::GetIntegerValue(1));
+        }
+        break;
+      case WindowFunctionType::SumAggregate:
+        if (input.IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input;
+        } else {
+          *result = result->Add(input);
+        }
+        break;
+      case WindowFunctionType::MinAggregate:
+        if (input.IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input;
+        } else {
+          *result = result->Min(input);
+        }
+        break;
+      case WindowFunctionType::MaxAggregate:
+        if (input.IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input;
+        } else {
+          *result = result->Max(input);
+        }
+        break;
+      case WindowFunctionType::Rank:
+        *result = result->Add(ValueFactory::GetIntegerValue(1));
+        break;  
+    }
+  }
+
+  /**
+   * Inserts a value into the hash table and then combines it with the current aggregation.
+   * @param agg_key the key to be inserted
+   * @param agg_val the value to be inserted
+   */
+  auto InsertCombine(const AggregateKey &agg_key, const Value &agg_val) -> Value {
+    if (ht_.count(agg_key) == 0) {
+      ht_.insert({agg_key, GenerateInitialAggregateValue()});
+    }
+  
+    CombineAggregateValues(&ht_[agg_key], agg_val);
+    return ht_[agg_key];
+  }
+
+  /**
+   * Clear the hash table
+   */
+  void Clear() { ht_.clear(); }
+  
+  private:
+  /** The hash table is just a map from aggregate keys to aggregate values */
+  std::unordered_map<AggregateKey, Value> ht_{};
+  /** The aggregate expressions that we have */
+  //const AbstractExpressionRef &agg_expr_;
+  /** The types of aggregations that we have */
+  const WindowFunctionType agg_type_{};
 };
 
 }  // namespace bustub

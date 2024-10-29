@@ -12,11 +12,14 @@
 
 #pragma once
 
+#include <_types/_uint32_t.h>
 #include <memory>
 #include <vector>
 
+#include "common/rid.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/executors/aggregation_executor.h"
 #include "execution/plans/window_plan.h"
 #include "storage/table/tuple.h"
 
@@ -90,5 +93,12 @@ class WindowFunctionExecutor : public AbstractExecutor {
 
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+
+  std::vector<Tuple> tuples_;
+  std::vector<RID> rids_;
+  std::vector<uint32_t> pos_;
+  std::map<uint32_t, std::shared_ptr<SimpleWindowHashTable>> window_tables_;
+
+  uint32_t offset_;
 };
 }  // namespace bustub
