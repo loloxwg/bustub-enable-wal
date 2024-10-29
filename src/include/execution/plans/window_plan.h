@@ -28,6 +28,7 @@
 #include "execution/plans/aggregation_plan.h"
 #include "fmt/format.h"
 #include "storage/table/tuple.h"
+#include "type/type_id.h"
 #include "type/value.h"
 #include "type/value_factory.h"
 
@@ -147,7 +148,7 @@ class SimpleWindowHashTable {
   void CombineAggregateValues(Value *result, const Value &input) {
     switch (agg_type_) {
       case WindowFunctionType::CountStarAggregate:
-        result->Add(ValueFactory::GetIntegerValue(1));
+        *result = result->Add(ValueFactory::GetIntegerValue(1));
         break;
       case WindowFunctionType::CountAggregate:
         if (input.IsNull()) {
@@ -190,7 +191,10 @@ class SimpleWindowHashTable {
         }
         break;
       case WindowFunctionType::Rank:
-        *result = result->Add(ValueFactory::GetIntegerValue(1));
+        if (input.IsNull() || rank_before_.GetTypeId() == TypeId::INVALID || input.CompareEquals(rank_before_) == CmpBool::CmpFalse) {
+          *result = result->Add(ValueFactory::GetIntegerValue(1));
+        }
+        rank_before_ = input;
         break;  
     }
   }
@@ -209,6 +213,10 @@ class SimpleWindowHashTable {
     return ht_[agg_key];
   }
 
+  auto ResultValue(const AggregateKey &agg_key) -> Value {
+    return ht_[agg_key];
+  }
+
   /**
    * Clear the hash table
    */
@@ -220,6 +228,7 @@ class SimpleWindowHashTable {
   /** The aggregate expressions that we have */
   //const AbstractExpressionRef &agg_expr_;
   /** The types of aggregations that we have */
+  Value rank_before_;
   const WindowFunctionType agg_type_{};
 };
 

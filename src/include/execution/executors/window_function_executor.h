@@ -99,6 +99,7 @@ class WindowFunctionExecutor : public AbstractExecutor {
   std::vector<uint32_t> pos_;
   std::map<uint32_t, std::shared_ptr<SimpleWindowHashTable>> window_tables_;
 
+  std::vector<Tuple> result_tuples_;
   uint32_t offset_;
 };
 }  // namespace bustub
