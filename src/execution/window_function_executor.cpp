@@ -5,6 +5,7 @@
 #include <vector>
 #include "catalog/column.h"
 #include "catalog/schema.h"
+#include "common/util/tuple_util.h"
 #include "execution/expressions/column_value_expression.h"
 #include "execution/plans/aggregation_plan.h"
 #include "execution/plans/window_plan.h"
@@ -25,6 +26,9 @@ void WindowFunctionExecutor::Init() {
   RID rid;
   uint32_t idx = 0;
   offset_ = 0;
+  tuples_.clear();
+  rids_.clear();
+  pos_.clear();
   
   // aht_->Clear();
   while (child_executor_->Next(&tuple, &rid)) {
@@ -36,21 +40,7 @@ void WindowFunctionExecutor::Init() {
 
   auto win_func = *plan_->window_functions_.begin();  
   if (!win_func.second.order_by_.empty()) {
-    std::sort(pos_.begin(), pos_.end(), [&](uint32_t idx1, uint32_t idx2) {
-      for (const auto& pair : win_func.second.order_by_) {
-        Value left = pair.second->Evaluate(&tuples_[idx1], child_executor_->GetOutputSchema());
-        Value right = pair.second->Evaluate(&tuples_[idx2], child_executor_->GetOutputSchema());
-        auto cmp = left.CompareEquals(right);
-        if (cmp == CmpBool::CmpTrue) {
-          continue;
-        }
-        if (pair.first == OrderByType::ASC || pair.first == OrderByType::DEFAULT) {
-          return left.CompareLessThan(right) == CmpBool::CmpTrue;
-        }
-        return left.CompareGreaterThan(right) == CmpBool::CmpTrue;  
-      }
-      return false;
-    });
+    TupleUtil::Sort(tuples_, pos_, win_func.second.order_by_, child_executor_->GetOutputSchema());
 
     while (offset_ < pos_.size()) {
       Tuple child_tuple = tuples_[pos_[offset_]];
@@ -87,7 +77,6 @@ void WindowFunctionExecutor::Init() {
           auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
           values.emplace_back(table->InsertCombine(key, {value}));
         }
-        
       }
   
       result_tuples_.emplace_back(Tuple(values, &GetOutputSchema()));

@@ -5,6 +5,7 @@
 #include <vector>
 #include "binder/bound_order_by.h"
 #include "common/rid.h"
+#include "common/util/tuple_util.h"
 #include "storage/table/tuple.h"
 #include "type/type.h"
 
@@ -34,22 +35,8 @@ void SortExecutor::Init() {
     pos_.push_back(idx);
     idx++;
   }
-  
-  std::sort(pos_.begin(), pos_.end(), [&](size_t idx1, size_t idx2){
-    for (const auto& pair : order_bys_) {
-      Value left = pair.second->Evaluate(&tuples_[idx1], child_executor_->GetOutputSchema());
-      Value right = pair.second->Evaluate(&tuples_[idx2], child_executor_->GetOutputSchema());
-      auto cmp = left.CompareEquals(right);
-      if (cmp == CmpBool::CmpTrue) {
-        continue;
-      }
-      if (pair.first == OrderByType::ASC || pair.first == OrderByType::DEFAULT) {
-        return left.CompareLessThan(right) == CmpBool::CmpTrue;
-      }
-      return left.CompareGreaterThan(right) == CmpBool::CmpTrue;  
-    }
-    return false;
-  });
+
+  TupleUtil::Sort(tuples_, pos_, order_bys_, child_executor_->GetOutputSchema());
 }
 
 auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool { 

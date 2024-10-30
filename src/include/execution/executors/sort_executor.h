@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <_types/_uint32_t.h>
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -56,7 +57,7 @@ class SortExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::vector<Tuple> tuples_;
   std::vector<RID> rids_;
-  std::vector<size_t> pos_;
+  std::vector<uint32_t> pos_;
   std::vector<std::pair<OrderByType, AbstractExpressionRef>> order_bys_;
   size_t offset_;
 };
