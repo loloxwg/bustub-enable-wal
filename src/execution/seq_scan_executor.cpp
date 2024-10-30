@@ -21,7 +21,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
   plan_ = plan;
 }
 
-void SeqScanExecutor::Init() { 
+void SeqScanExecutor::Init() {
   auto table_info = GetExecutorContext()->GetCatalog()->GetTable(plan_->table_oid_);
   table_heap_ = table_info->table_.get();
   auto iter = table_heap_->MakeIterator();
@@ -32,15 +32,15 @@ void SeqScanExecutor::Init() {
     rids_.emplace_back(iter.GetRID());
     ++iter;
   }
- }
+}
 
-auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (cursor_ < rids_.size()) {
     auto [meta, tuple_] = table_heap_->GetTuple(rids_[cursor_]);
     if (!meta.is_deleted_) {
       if (plan_->filter_predicate_ != nullptr) {
         if (plan_->filter_predicate_->Evaluate(&tuple_, GetOutputSchema())
-              .CompareEquals(ValueFactory::GetBooleanValue(true)) == CmpBool::CmpTrue) {
+                .CompareEquals(ValueFactory::GetBooleanValue(true)) == CmpBool::CmpTrue) {
           *tuple = tuple_;
           *rid = rids_[cursor_];
           cursor_++;
@@ -55,7 +55,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     }
     cursor_++;
   }
-  return false; 
+  return false;
 }
 
 }  // namespace bustub

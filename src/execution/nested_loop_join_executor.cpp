@@ -34,13 +34,13 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
   right_executor_ = std::move(right_executor);
 }
 
-void NestedLoopJoinExecutor::Init() { 
+void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
   has_value_ = left_executor_->Next(&left_tuple_, &left_rid_);
 }
 
-auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (!has_value_) {
     return false;
   }
@@ -49,7 +49,10 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   RID right_rid;
 
   while (right_executor_->Next(&right_tuple, &right_rid)) {
-    if (plan_->predicate_->EvaluateJoin(&left_tuple_, plan_->GetLeftPlan()->OutputSchema(), &right_tuple, plan_->GetRightPlan()->OutputSchema()).GetAs<bool>()) {
+    if (plan_->predicate_
+            ->EvaluateJoin(&left_tuple_, plan_->GetLeftPlan()->OutputSchema(), &right_tuple,
+                           plan_->GetRightPlan()->OutputSchema())
+            .GetAs<bool>()) {
       std::vector<Value> values{};
       auto left_schema = plan_->GetLeftPlan()->OutputSchema();
       for (size_t idx = 0; idx < left_schema.GetColumnCount(); idx++) {
@@ -89,7 +92,10 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (left_executor_->Next(&left_tuple_, &left_rid_)) {
     left_join_return_ = false;
     while (right_executor_->Next(&right_tuple, &right_rid)) {
-      if (plan_->predicate_->EvaluateJoin(&left_tuple_, plan_->GetLeftPlan()->OutputSchema(), &right_tuple, plan_->GetRightPlan()->OutputSchema()).GetAs<bool>()) {
+      if (plan_->predicate_
+              ->EvaluateJoin(&left_tuple_, plan_->GetLeftPlan()->OutputSchema(), &right_tuple,
+                             plan_->GetRightPlan()->OutputSchema())
+              .GetAs<bool>()) {
         std::vector<Value> values{};
         auto left_schema = plan_->GetLeftPlan()->OutputSchema();
         for (size_t idx = 0; idx < left_schema.GetColumnCount(); idx++) {

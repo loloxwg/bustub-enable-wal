@@ -53,7 +53,7 @@ class SeqScanExecutor : public AbstractExecutor {
  private:
   /** The sequential scan plan node to be executed */
   const SeqScanPlanNode *plan_;
-  TableHeap* table_heap_;
+  TableHeap *table_heap_;
   std::vector<RID> rids_;
   size_t cursor_;
 };

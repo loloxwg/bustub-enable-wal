@@ -21,21 +21,19 @@ namespace bustub {
 DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-    plan_ = plan;
-    auto catalog = GetExecutorContext()->GetCatalog();
-    table_info_ = catalog->GetTable(plan_->table_oid_);
-    table_heap_ = table_info_->table_.get();
-    indexs_ = catalog->GetTableIndexes(table_info_->name_);
-    child_executor_ = std::move(child_executor);
-  }
-
-void DeleteExecutor::Init() { 
-  child_executor_->Init();
+  plan_ = plan;
+  auto catalog = GetExecutorContext()->GetCatalog();
+  table_info_ = catalog->GetTable(plan_->table_oid_);
+  table_heap_ = table_info_->table_.get();
+  indexs_ = catalog->GetTableIndexes(table_info_->name_);
+  child_executor_ = std::move(child_executor);
 }
 
-auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { 
+void DeleteExecutor::Init() { child_executor_->Init(); }
+
+auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (called_) {
-    return false; 
+    return false;
   }
   called_ = true;
 
@@ -59,7 +57,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> values{};
   values.push_back(ValueFactory::GetIntegerValue(count));
   *tuple = Tuple(values, &GetOutputSchema());
-  return true; 
+  return true;
 }
 
 }  // namespace bustub

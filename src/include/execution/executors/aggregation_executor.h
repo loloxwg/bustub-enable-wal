@@ -240,11 +240,11 @@ class AggregationExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
 
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment 
+  // TODO(Student): Uncomment
   std::unique_ptr<SimpleAggregationHashTable> aht_;
 
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment 
+  // TODO(Student): Uncomment
   std::unique_ptr<SimpleAggregationHashTable::Iterator> aht_iterator_;
 
   bool has_value_{false};

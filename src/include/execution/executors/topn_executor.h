@@ -67,8 +67,7 @@ class TopNExecutor : public AbstractExecutor {
     RID rid_;
   };
 
-
-  using CmpType = std::function<bool(const TopNItem&, const TopNItem&)>;
+  using CmpType = std::function<bool(const TopNItem &, const TopNItem &)>;
   /** The TopN plan node to be executed */
   const TopNPlanNode *plan_;
   /** The child executor from which tuples are obtained */

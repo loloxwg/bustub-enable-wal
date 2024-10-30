@@ -30,7 +30,7 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
   // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
 }
 
-void UpdateExecutor::Init() { 
+void UpdateExecutor::Init() {
   auto catalog = GetExecutorContext()->GetCatalog();
   table_info_ = catalog->GetTable(plan_->table_oid_);
   heap_ = table_info_->table_.get();
@@ -38,7 +38,7 @@ void UpdateExecutor::Init() {
   child_executor_->Init();
 }
 
-auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { 
+auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (called_) {
     return false;
   }
@@ -49,14 +49,14 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   while (child_executor_->Next(&i_tuple, &i_rid)) {
     TupleMeta meta{0, true};
     heap_->UpdateTupleMeta(meta, i_rid);
-    
+
     std::vector<Value> values;
-    for (const auto& expr : plan_->target_expressions_) {
+    for (const auto &expr : plan_->target_expressions_) {
       values.emplace_back(expr->Evaluate(&i_tuple, child_executor_->GetOutputSchema()));
     }
     Tuple new_tuple(values, &child_executor_->GetOutputSchema());
     auto insert_rid = heap_->InsertTuple({0, false}, new_tuple);
-    
+
     if (!insert_rid.has_value()) {
       break;
     }
@@ -82,6 +82,6 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> values{};
   values.push_back(ValueFactory::GetIntegerValue(count));
   *tuple = Tuple(values, &GetOutputSchema());
-  return true; 
+  return true;
 }
 }  // namespace bustub

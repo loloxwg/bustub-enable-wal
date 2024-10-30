@@ -27,9 +27,8 @@ namespace bustub {
  */
 class TupleUtil {
  public:
-  static void Sort(const std::vector<Tuple> &tuples, std::vector<uint32_t> &pos, 
-      const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_by_,
-      const Schema &schema);
+  static void Sort(const std::vector<Tuple> &tuples, std::vector<uint32_t> &pos,
+                   const std::vector<std::pair<OrderByType, AbstractExpressionRef>> &order_by_, const Schema &schema);
 };
 
 }  // namespace bustub

@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <_types/_uint32_t.h>
 #include <cstddef>
 #include <cstdlib>
 #include <exception>

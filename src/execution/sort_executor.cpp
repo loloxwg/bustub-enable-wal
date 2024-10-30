@@ -5,7 +5,6 @@
 #include <vector>
 #include "binder/bound_order_by.h"
 #include "common/rid.h"
-#include "common/util/tuple_util.h"
 #include "storage/table/tuple.h"
 #include "type/type.h"
 
@@ -14,12 +13,12 @@ namespace bustub {
 SortExecutor::SortExecutor(ExecutorContext *exec_ctx, const SortPlanNode *plan,
                            std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-    plan_ = plan;
-    child_executor_ = std::move(child_executor);
-    order_bys_ = plan_->order_bys_;
-  }
+  plan_ = plan;
+  child_executor_ = std::move(child_executor);
+  order_bys_ = plan_->order_bys_;
+}
 
-void SortExecutor::Init() { 
+void SortExecutor::Init() {
   Tuple tuple;
   RID rid;
 
@@ -39,7 +38,7 @@ void SortExecutor::Init() {
   TupleUtil::Sort(tuples_, pos_, order_bys_, child_executor_->GetOutputSchema());
 }
 
-auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (offset_ == pos_.size()) {
     return false;
   }
@@ -47,5 +46,5 @@ auto SortExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   *rid = rids_[pos_[offset_]];
   offset_++;
   return true;
- }
+}
 }  // namespace bustub

@@ -25,10 +25,10 @@ namespace bustub {
 AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
                                          std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-    plan_ = plan;
-    child_executor_ = std::move(child_executor);
-    aht_ = std::make_unique<SimpleAggregationHashTable>(plan_->GetAggregates(), plan_->GetAggregateTypes());
-  }
+  plan_ = plan;
+  child_executor_ = std::move(child_executor);
+  aht_ = std::make_unique<SimpleAggregationHashTable>(plan_->GetAggregates(), plan_->GetAggregateTypes());
+}
 
 void AggregationExecutor::Init() {
   child_executor_->Init();
@@ -40,7 +40,7 @@ void AggregationExecutor::Init() {
     AggregateKey agg_key;
     for (const auto &expr : plan_->GetAggregates()) {
       auto value = expr->Evaluate(&tuple, child_executor_->GetOutputSchema());
-      agg_value.aggregates_.emplace_back(value); 
+      agg_value.aggregates_.emplace_back(value);
     }
     for (const auto &expr : plan_->GetGroupBys()) {
       auto value = expr->Evaluate(&tuple, child_executor_->GetOutputSchema());
@@ -52,7 +52,7 @@ void AggregationExecutor::Init() {
   aht_iterator_ = std::make_unique<SimpleAggregationHashTable::Iterator>(aht_->Begin());
 }
 
-auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (!has_value_) {
     has_value_ = true;
     if (plan_->group_bys_.empty()) {
@@ -75,7 +75,7 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   *tuple = Tuple{values, &GetOutputSchema()};
   *rid = RID{0};
   ++(*aht_iterator_);
-  return true; 
+  return true;
 }
 
 auto AggregationExecutor::GetChildExecutor() const -> const AbstractExecutor * { return child_executor_.get(); }

@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <_types/_uint32_t.h>
 #include <memory>
 #include <vector>
 
@@ -24,19 +23,17 @@ namespace bustub {
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-    plan_ = plan;
-    child_executor_ = std::move(child_executor);
-    auto catalog = GetExecutorContext()->GetCatalog();
-    table_info_ = catalog->GetTable(plan_->table_oid_);
-    heap_ = table_info_->table_.get();
-    indexs_ = catalog->GetTableIndexes(table_info_->name_);
-  }
-
-void InsertExecutor::Init() { 
-  child_executor_->Init();
+  plan_ = plan;
+  child_executor_ = std::move(child_executor);
+  auto catalog = GetExecutorContext()->GetCatalog();
+  table_info_ = catalog->GetTable(plan_->table_oid_);
+  heap_ = table_info_->table_.get();
+  indexs_ = catalog->GetTableIndexes(table_info_->name_);
 }
 
-auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { 
+void InsertExecutor::Init() { child_executor_->Init(); }
+
+auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (called_) {
     return false;
   }
@@ -50,7 +47,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     if (!result_rid.has_value()) {
       break;
     }
-    
+
     for (auto index : indexs_) {
       auto schema = index->index_->GetKeySchema();
       std::vector<uint32_t> col_idxs;

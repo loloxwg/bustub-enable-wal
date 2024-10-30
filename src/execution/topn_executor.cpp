@@ -10,28 +10,28 @@ namespace bustub {
 TopNExecutor::TopNExecutor(ExecutorContext *exec_ctx, const TopNPlanNode *plan,
                            std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx) {
-    plan_ = plan;
-    child_executor_ = std::move(child_executor);
-    limit_ = plan->GetN();
-    auto cmp = [&](const TopNItem &left, const TopNItem &right) {
-      for (const auto &pair : plan_->order_bys_) {
-        auto l_val = pair.second->Evaluate(&left.tuple_, child_executor_->GetOutputSchema());
-        auto r_val = pair.second->Evaluate(&right.tuple_, child_executor_->GetOutputSchema());
-        auto cmp = l_val.CompareEquals(r_val);
-        if (cmp == CmpBool::CmpTrue) {
-          continue;
-        }
-        if (pair.first == OrderByType::ASC || pair.first == OrderByType::DEFAULT) {
-          return l_val.CompareLessThan(r_val) == CmpBool::CmpTrue;
-        }
-        return l_val.CompareGreaterThan(r_val) == CmpBool::CmpTrue;
+  plan_ = plan;
+  child_executor_ = std::move(child_executor);
+  limit_ = plan->GetN();
+  auto cmp = [&](const TopNItem &left, const TopNItem &right) {
+    for (const auto &pair : plan_->order_bys_) {
+      auto l_val = pair.second->Evaluate(&left.tuple_, child_executor_->GetOutputSchema());
+      auto r_val = pair.second->Evaluate(&right.tuple_, child_executor_->GetOutputSchema());
+      auto cmp = l_val.CompareEquals(r_val);
+      if (cmp == CmpBool::CmpTrue) {
+        continue;
       }
-      return true;
-    };
-    queues_ = std::make_unique<std::priority_queue<TopNItem, std::vector<TopNItem>, CmpType>>(cmp);
-  }
+      if (pair.first == OrderByType::ASC || pair.first == OrderByType::DEFAULT) {
+        return l_val.CompareLessThan(r_val) == CmpBool::CmpTrue;
+      }
+      return l_val.CompareGreaterThan(r_val) == CmpBool::CmpTrue;
+    }
+    return true;
+  };
+  queues_ = std::make_unique<std::priority_queue<TopNItem, std::vector<TopNItem>, CmpType>>(cmp);
+}
 
-void TopNExecutor::Init() { 
+void TopNExecutor::Init() {
   child_executor_->Init();
   while (!queues_->empty()) {
     queues_->pop();
@@ -56,7 +56,7 @@ void TopNExecutor::Init() {
 
 auto TopNExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (offset_ < 0) {
-    return false; 
+    return false;
   }
   TopNItem item = items_[offset_];
   *tuple = item.tuple_;
@@ -65,7 +65,7 @@ auto TopNExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   return true;
 }
 
-auto TopNExecutor::GetNumInHeap() -> size_t { 
+auto TopNExecutor::GetNumInHeap() -> size_t {
   if (offset_ <= 0) {
     return 0;
   }

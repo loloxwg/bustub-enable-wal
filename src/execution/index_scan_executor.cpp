@@ -17,16 +17,17 @@
 namespace bustub {
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)
     : AbstractExecutor(exec_ctx) {
-     plan_ = plan; 
-  }
+  plan_ = plan;
+}
 
-void IndexScanExecutor::Init() { 
+void IndexScanExecutor::Init() {
   auto catalog = GetExecutorContext()->GetCatalog();
   table_heap_ = catalog->GetTable(plan_->table_oid_)->table_.get();
   index_info_ = catalog->GetIndex(plan_->GetIndexOid());
+  called_ = false;
 }
 
-auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (called_) {
     return false;
   }

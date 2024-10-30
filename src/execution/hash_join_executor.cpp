@@ -30,7 +30,7 @@ HashJoinExecutor::HashJoinExecutor(ExecutorContext *exec_ctx, const HashJoinPlan
   right_child_ = std::move(right_child);
 }
 
-void HashJoinExecutor::Init() { 
+void HashJoinExecutor::Init() {
   left_child_->Init();
   right_child_->Init();
   Tuple tuple;
@@ -48,10 +48,10 @@ void HashJoinExecutor::Init() {
   right_tuple_vec_ = nullptr;
 }
 
-auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool { 
+auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (right_tuple_vec_ != nullptr && right_offset_ < right_tuple_vec_->size()) {
     *tuple = GetOutputTuple(&left_tuple_, &((*right_tuple_vec_)[right_offset_]));
-    *rid = RID{0}; 
+    *rid = RID{0};
     right_offset_++;
     return true;
   }
@@ -66,13 +66,13 @@ auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         right_offset_++;
         if (left_key == GetRightJoinKey(&it)) {
           *tuple = GetOutputTuple(&left_tuple_, &it);
-          *rid = RID{0}; 
+          *rid = RID{0};
           return true;
-        } 
+        }
       }
     } else if (plan_->join_type_ == JoinType::LEFT) {
       *tuple = GetLeftOutputTuple(&left_tuple_);
-      *rid = RID{0}; 
+      *rid = RID{0};
       return true;
     }
   }

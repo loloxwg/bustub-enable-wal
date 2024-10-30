@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <_types/_uint32_t.h>
 #include <memory>
 #include <vector>
 
@@ -24,6 +23,140 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
+
+class SimpleWindowHashTable {
+ public:
+  /**
+   * Construct a new SimpleAggregationHashTable instance.
+   * @param agg_exprs the aggregation expressions
+   * @param agg_types the types of aggregations
+   */
+  explicit SimpleWindowHashTable(const WindowFunctionType &agg_type) : agg_type_{agg_type} {}
+
+  SimpleWindowHashTable(const SimpleWindowHashTable &other) = default;
+
+  /** @return The initial aggregate value for this aggregation executor */
+  auto GenerateInitialAggregateValue() -> Value {
+    switch (agg_type_) {
+      case WindowFunctionType::CountStarAggregate:
+        // Count start starts at zero.
+        return ValueFactory::GetIntegerValue(0);
+      case WindowFunctionType::CountAggregate:
+      case WindowFunctionType::SumAggregate:
+      case WindowFunctionType::MinAggregate:
+      case WindowFunctionType::MaxAggregate:
+        // Others starts at null.
+        return ValueFactory::GetNullValueByType(TypeId::INTEGER);
+      case WindowFunctionType::Rank:
+        return ValueFactory::GetIntegerValue(0);
+    }
+
+    return {};
+  }
+
+  /**
+   * TODO(Student)
+   *
+   * Combines the input into the aggregation result.
+   * @param[out] result The output aggregate value
+   * @param input The input value
+   */
+  void CombineAggregateValues(Value *result, const std::vector<Value> &input) {
+    switch (agg_type_) {
+      case WindowFunctionType::CountStarAggregate:
+        *result = result->Add(ValueFactory::GetIntegerValue(1));
+        break;
+      case WindowFunctionType::CountAggregate:
+        if (input[0].IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = ValueFactory::GetIntegerValue(1);
+        } else {
+          *result = result->Add(ValueFactory::GetIntegerValue(1));
+        }
+        break;
+      case WindowFunctionType::SumAggregate:
+        if (input[0].IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input[0];
+        } else {
+          *result = result->Add(input[0]);
+        }
+        break;
+      case WindowFunctionType::MinAggregate:
+        if (input[0].IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input[0];
+        } else {
+          *result = result->Min(input[0]);
+        }
+        break;
+      case WindowFunctionType::MaxAggregate:
+        if (input[0].IsNull()) {
+          return;
+        }
+        if (result->IsNull()) {
+          *result = input[0];
+        } else {
+          *result = result->Max(input[0]);
+        }
+        break;
+      case WindowFunctionType::Rank:
+        count_++;
+        if (rank_before_.empty() || !RankEqual(input, rank_before_)) {
+          *result = ValueFactory::GetIntegerValue(count_);
+        }
+
+        rank_before_ = input;
+        break;
+    }
+  }
+
+  /**
+   * Inserts a value into the hash table and then combines it with the current aggregation.
+   * @param agg_key the key to be inserted
+   * @param agg_val the value to be inserted
+   */
+  auto InsertCombine(const AggregateKey &agg_key, const std::vector<Value> &agg_val) -> Value {
+    if (ht_.count(agg_key) == 0) {
+      ht_.insert({agg_key, GenerateInitialAggregateValue()});
+    }
+
+    CombineAggregateValues(&ht_[agg_key], agg_val);
+    return ht_[agg_key];
+  }
+
+  auto ResultValue(const AggregateKey &agg_key) -> Value { return ht_[agg_key]; }
+
+  auto RankEqual(const std::vector<Value> &v1, const std::vector<Value> &v2) -> bool {
+    for (uint32_t i = 0; i < v1.size(); i++) {
+      if (v1[i].CompareEquals(v2[i]) == CmpBool::CmpFalse) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Clear the hash table
+   */
+  void Clear() { ht_.clear(); }
+
+ private:
+  /** The hash table is just a map from aggregate keys to aggregate values */
+  std::unordered_map<AggregateKey, Value> ht_{};
+  /** The aggregate expressions that we have */
+  // const AbstractExpressionRef &agg_expr_;
+  /** The types of aggregations that we have */
+  std::vector<Value> rank_before_;
+  uint32_t count_{0};
+  const WindowFunctionType agg_type_{};
+};
 
 /**
  * The WindowFunctionExecutor executor executes a window function for columns using window function.

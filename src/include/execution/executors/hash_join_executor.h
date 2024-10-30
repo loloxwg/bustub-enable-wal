@@ -29,12 +29,122 @@
 
 namespace bustub {
 
-class HashTable {
-  public:
-    HashTable(AbstractExecutor *left, AbstractExecutor *right) {
+using hash_t = std::size_t;
 
+class MyHashUtil {
+ private:
+  static const hash_t PRIME_FACTOR = 10000019;
+
+ public:
+  static inline auto HashBytes(const char *bytes, size_t length) -> hash_t {
+    // https://github.com/greenplum-db/gpos/blob/b53c1acd6285de94044ff91fbee91589543feba1/libgpos/src/utils.cpp#L126
+    hash_t hash = length;
+    for (size_t i = 0; i < length; ++i) {
+      hash = ((hash << 5) ^ (hash >> 27)) ^ bytes[i];
     }
+    return hash;
+  }
 
+  static inline auto CombineHashes(hash_t l, hash_t r) -> hash_t {
+    hash_t both[2] = {};
+    both[0] = l;
+    both[1] = r;
+    return HashBytes(reinterpret_cast<char *>(both), sizeof(hash_t) * 2);
+  }
+
+  static inline auto SumHashes(hash_t l, hash_t r) -> hash_t {
+    return (l % PRIME_FACTOR + r % PRIME_FACTOR) % PRIME_FACTOR;
+  }
+
+  template <typename T>
+  static inline auto Hash(const T *ptr) -> hash_t {
+    return HashBytes(reinterpret_cast<const char *>(ptr), sizeof(T));
+  }
+
+  template <typename T>
+  static inline auto HashPtr(const T *ptr) -> hash_t {
+    return HashBytes(reinterpret_cast<const char *>(&ptr), sizeof(void *));
+  }
+
+  /** @return the hash of the value */
+  static inline auto HashValue(const Value *val) -> hash_t {
+    switch (val->GetTypeId()) {
+      case TypeId::TINYINT: {
+        auto raw = static_cast<int64_t>(val->GetAs<int8_t>());
+        return Hash<int64_t>(&raw);
+      }
+      case TypeId::SMALLINT: {
+        auto raw = static_cast<int64_t>(val->GetAs<int16_t>());
+        return Hash<int64_t>(&raw);
+      }
+      case TypeId::INTEGER: {
+        auto raw = static_cast<int64_t>(val->GetAs<int32_t>());
+        return Hash<int64_t>(&raw);
+      }
+      case TypeId::BIGINT: {
+        auto raw = static_cast<int64_t>(val->GetAs<int64_t>());
+        return Hash<int64_t>(&raw);
+      }
+      case TypeId::BOOLEAN: {
+        auto raw = val->GetAs<bool>();
+        return Hash<bool>(&raw);
+      }
+      case TypeId::DECIMAL: {
+        auto raw = val->GetAs<double>();
+        return Hash<double>(&raw);
+      }
+      case TypeId::VARCHAR: {
+        auto raw = val->GetData();
+        auto len = val->GetLength();
+        return HashBytes(raw, len);
+      }
+      case TypeId::TIMESTAMP: {
+        auto raw = val->GetAs<uint64_t>();
+        return Hash<uint64_t>(&raw);
+      }
+      default: {
+        UNIMPLEMENTED("Unsupported type.");
+      }
+    }
+  }
+};
+
+struct HashJoinKey {
+  std::vector<Value> vals_;
+
+  auto operator==(const HashJoinKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.vals_.size(); i++) {
+      if (vals_[i].CompareEquals(other.vals_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+}  // namespace bustub
+
+namespace std {
+
+/** Implements std::hash on AggregateKey */
+template <>
+struct hash<bustub::HashJoinKey> {
+  auto operator()(const bustub::HashJoinKey &hash_key) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : hash_key.vals_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::MyHashUtil::CombineHashes(curr_hash, bustub::MyHashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+
+}  // namespace std
+
+namespace bustub {
+class HashTable {
+ public:
+  HashTable(AbstractExecutor *left, AbstractExecutor *right) {}
 };
 
 /**
@@ -99,7 +209,7 @@ class HashJoinExecutor : public AbstractExecutor {
   }
 
   auto GetLeftOutputTuple(Tuple *left_tuple) -> Tuple {
-     std::vector<Value> vals;
+    std::vector<Value> vals;
     auto left_schema = plan_->GetLeftPlan()->OutputSchema();
     for (size_t idx = 0; idx < left_schema.GetColumnCount(); idx++) {
       vals.emplace_back(left_tuple->GetValue(&left_schema, idx));

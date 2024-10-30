@@ -9,8 +9,8 @@
 #include "execution/expressions/abstract_expression.h"
 #include "execution/expressions/column_value_expression.h"
 #include "execution/expressions/comparison_expression.h"
-#include "execution/expressions/logic_expression.h"
 #include "execution/expressions/constant_value_expression.h"
+#include "execution/expressions/logic_expression.h"
 #include "execution/plans/abstract_plan.h"
 #include "execution/plans/filter_plan.h"
 #include "execution/plans/hash_join_plan.h"
@@ -24,30 +24,31 @@ namespace bustub {
 using ExprVec = std::vector<AbstractExpressionRef>;
 
 static auto Visit(const AbstractExpressionRef &expr, ExprVec *expr1, ExprVec *expr2) -> bool {
-  if (dynamic_cast<ComparisonExpression*>(expr.get()) != nullptr) {
-    auto comp_expr = dynamic_cast<ComparisonExpression*>(expr.get());
+  if (dynamic_cast<ComparisonExpression *>(expr.get()) != nullptr) {
+    auto comp_expr = dynamic_cast<ComparisonExpression *>(expr.get());
     if (comp_expr->comp_type_ != ComparisonType::Equal) {
       return false;
     }
     auto left_expr = comp_expr->GetChildAt(0);
     auto right_expr = comp_expr->GetChildAt(1);
-    if (dynamic_cast<ColumnValueExpression*>(left_expr.get()) != nullptr && dynamic_cast<ColumnValueExpression*>(right_expr.get()) != nullptr) {
-        auto col_expr1 = dynamic_cast<ColumnValueExpression*>(left_expr.get());
-        auto col_expr2 = dynamic_cast<ColumnValueExpression*>(right_expr.get());
-        if (col_expr1->GetTupleIdx() == col_expr2->GetTupleIdx()) {
-          return false;
-        }
-        if (col_expr1->GetTupleIdx() == 0) {
-          expr1->emplace_back(left_expr);
-          expr2->emplace_back(right_expr);
-        } else {
-          expr1->emplace_back(right_expr);
-          expr2->emplace_back(left_expr);
-        }
-        return true;
+    if (dynamic_cast<ColumnValueExpression *>(left_expr.get()) != nullptr &&
+        dynamic_cast<ColumnValueExpression *>(right_expr.get()) != nullptr) {
+      auto col_expr1 = dynamic_cast<ColumnValueExpression *>(left_expr.get());
+      auto col_expr2 = dynamic_cast<ColumnValueExpression *>(right_expr.get());
+      if (col_expr1->GetTupleIdx() == col_expr2->GetTupleIdx()) {
+        return false;
+      }
+      if (col_expr1->GetTupleIdx() == 0) {
+        expr1->emplace_back(left_expr);
+        expr2->emplace_back(right_expr);
+      } else {
+        expr1->emplace_back(right_expr);
+        expr2->emplace_back(left_expr);
+      }
+      return true;
     }
-  } else if (dynamic_cast<LogicExpression*>(expr.get()) != nullptr) {
-    auto logic_expr = dynamic_cast<LogicExpression*>(expr.get());
+  } else if (dynamic_cast<LogicExpression *>(expr.get()) != nullptr) {
+    auto logic_expr = dynamic_cast<LogicExpression *>(expr.get());
     if (logic_expr->logic_type_ != LogicType::And) {
       return false;
     }
@@ -73,10 +74,11 @@ auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> Abstra
     ExprVec left_vec;
     ExprVec right_vec;
     if (Visit(nlj_plan.predicate_, &left_vec, &right_vec)) {
-      return std::make_shared<HashJoinPlanNode>(nlj_plan.output_schema_, nlj_plan.GetChildAt(0), nlj_plan.GetChildAt(1), left_vec, right_vec, nlj_plan.join_type_);
+      return std::make_shared<HashJoinPlanNode>(nlj_plan.output_schema_, nlj_plan.GetChildAt(0), nlj_plan.GetChildAt(1),
+                                                left_vec, right_vec, nlj_plan.join_type_);
     }
   }
-  
+
   return optimized_plan;
 }
 
