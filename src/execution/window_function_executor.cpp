@@ -41,49 +41,12 @@ void WindowFunctionExecutor::Init() {
   auto win_func = *plan_->window_functions_.begin();  
   if (!win_func.second.order_by_.empty()) {
     TupleUtil::Sort(tuples_, pos_, win_func.second.order_by_, child_executor_->GetOutputSchema());
+  }
 
+  bool has_orde_by = !win_func.second.order_by_.empty();
+
+  if (!has_orde_by) {
     while (offset_ < pos_.size()) {
-      Tuple child_tuple = tuples_[pos_[offset_]];
-      std::vector<Value> values;
-      uint32_t col_count = child_executor_->GetOutputSchema().GetColumnCount();
-      values.reserve(col_count);
-      for (uint32_t idx = 0; idx < col_count; idx++) {
-        for (auto &col : plan_->columns_) {
-          if (dynamic_cast<ColumnValueExpression*>(col.get()) != nullptr) {
-            auto col_expr = dynamic_cast<ColumnValueExpression*>(col.get());
-            if (col_expr->GetColIdx() == idx) {
-              values.emplace_back(child_tuple.GetValue(&child_executor_->GetOutputSchema(), idx));
-            }
-          }
-        }
-      }
-
-      for (const auto &win_func : plan_->window_functions_) {
-        if (window_tables_.find(win_func.first) == window_tables_.end()) {
-          window_tables_[win_func.first] = std::make_shared<SimpleWindowHashTable>(win_func.second.type_);
-        }
-        auto table = window_tables_[win_func.first];
-        AggregateKey key;
-        for (const auto &expr : win_func.second.partition_by_) {
-          key.group_bys_.emplace_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
-        }
-        if (win_func.second.type_ == WindowFunctionType::Rank) {
-          std::vector<Value> agg_vals;
-          for (const auto& pair : win_func.second.order_by_) {
-            agg_vals.emplace_back(pair.second->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
-          }
-          values.emplace_back(table->InsertCombine(key, agg_vals));
-        } else {
-          auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
-          values.emplace_back(table->InsertCombine(key, {value}));
-        }
-      }
-  
-      result_tuples_.emplace_back(Tuple(values, &GetOutputSchema()));
-      offset_++;    
-    }
-  } else {
-     while (offset_ < pos_.size()) {
       Tuple child_tuple = tuples_[pos_[offset_]];
       for (const auto &win_func : plan_->window_functions_) {
         if (window_tables_.find(win_func.first) == window_tables_.end()) {
@@ -99,35 +62,51 @@ void WindowFunctionExecutor::Init() {
       }
       offset_++;    
     }
+  }
+  offset_ = 0;
 
-    offset_ = 0;
-    while (offset_ < pos_.size()) {
-      Tuple child_tuple = tuples_[pos_[offset_]];
-      std::vector<Value> values;
-      uint32_t col_count = child_executor_->GetOutputSchema().GetColumnCount();
-      values.reserve(col_count);
-      for (uint32_t idx = 0; idx < col_count; idx++) {
-        for (auto &col : plan_->columns_) {
-          if (dynamic_cast<ColumnValueExpression*>(col.get()) != nullptr) {
-            auto col_expr = dynamic_cast<ColumnValueExpression*>(col.get());
-            if (col_expr->GetColIdx() == idx) {
-              values.emplace_back(child_tuple.GetValue(&child_executor_->GetOutputSchema(), idx));
-            }
+  while (offset_ < pos_.size()) {
+    Tuple child_tuple = tuples_[pos_[offset_]];
+    std::vector<Value> values;
+    uint32_t col_count = child_executor_->GetOutputSchema().GetColumnCount();
+    values.reserve(col_count);
+    for (uint32_t idx = 0; idx < col_count; idx++) {
+      for (auto &col : plan_->columns_) {
+        if (dynamic_cast<ColumnValueExpression*>(col.get()) != nullptr) {
+          auto col_expr = dynamic_cast<ColumnValueExpression*>(col.get());
+          if (col_expr->GetColIdx() == idx) {
+            values.emplace_back(child_tuple.GetValue(&child_executor_->GetOutputSchema(), idx));
           }
         }
       }
-
-      for (const auto &win_func : plan_->window_functions_) {
-        auto table = window_tables_[win_func.first];
-        AggregateKey key;
-        for (const auto &expr : win_func.second.partition_by_) {
-          key.group_bys_.emplace_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
-        }
-        values.emplace_back(table->ResultValue(key));
-      }
-      result_tuples_.emplace_back(Tuple(values, &GetOutputSchema()));
-      offset_++;  
     }
+
+    for (const auto &win_func : plan_->window_functions_) {
+      if (window_tables_.find(win_func.first) == window_tables_.end()) {
+        window_tables_[win_func.first] = std::make_shared<SimpleWindowHashTable>(win_func.second.type_);
+      }
+      auto table = window_tables_[win_func.first];
+      AggregateKey key;
+      for (const auto &expr : win_func.second.partition_by_) {
+        key.group_bys_.emplace_back(expr->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
+      }
+
+      if (!has_orde_by) {
+        values.emplace_back(table->ResultValue(key));
+      } else if (win_func.second.type_ == WindowFunctionType::Rank) {
+        std::vector<Value> agg_vals;
+        for (const auto& pair : win_func.second.order_by_) {
+          agg_vals.emplace_back(pair.second->Evaluate(&child_tuple, child_executor_->GetOutputSchema()));
+        }
+        values.emplace_back(table->InsertCombine(key, agg_vals));
+      } else {
+        auto value = win_func.second.function_->Evaluate(&child_tuple, child_executor_->GetOutputSchema());
+        values.emplace_back(table->InsertCombine(key, {value}));
+      }
+    }
+
+    result_tuples_.emplace_back(Tuple(values, &GetOutputSchema()));
+    offset_++;    
   }
   offset_ = 0;
 }
