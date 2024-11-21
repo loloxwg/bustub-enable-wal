@@ -114,7 +114,7 @@ void TransactionManager::GarbageCollection() {
         should_be_deleted = true;
       }
       auto undo_link = GetUndoLink(it.GetRID());
-      while (undo_link.has_value() && undo_link->IsValid()) {
+      while (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1) {
         auto undo_log = GetUndoLogOptional(undo_link.value());
         if (!undo_log.has_value()) {
           break;

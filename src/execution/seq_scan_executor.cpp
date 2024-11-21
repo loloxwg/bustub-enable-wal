@@ -55,7 +55,8 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       auto undo_log = txn_manager->GetUndoLog(undo_link.value());
       undo_logs.emplace_back(undo_log);
 
-      while (undo_log.ts_ > txn->GetReadTs() && undo_log.prev_version_.IsValid() && undo_log.prev_version_.prev_log_idx_ != -1) {
+      while (undo_log.ts_ > txn->GetReadTs() && undo_log.prev_version_.IsValid() &&
+             undo_log.prev_version_.prev_log_idx_ != -1) {
         undo_log = txn_manager->GetUndoLog(undo_log.prev_version_);
         undo_logs.emplace_back(undo_log);
       }

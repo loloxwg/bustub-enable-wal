@@ -103,7 +103,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           ver_link->prev_ = undo_link;
           assert(txn_mgr->UpdateVersionLink(r_rid, ver_link));
         }
-      
+
         meta.ts_ = txn->GetTransactionId();
         heap_->UpdateTupleInPlace(meta, inserted_tuple, r_rid);
         txn->AppendWriteSet(table_info_->oid_, r_rid);
@@ -119,11 +119,11 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           txn->SetTainted();
           throw ExecutionException("Write-write confilct at insert_executor");
         }
-        
+
         if (!index->index_->InsertEntry(key, r_rid, txn)) {
           std::vector<RID> result;
           index->index_->ScanKey(key, &result, txn);
-         
+
           txn->SetTainted();
           throw ExecutionException("failed in insert_index");
         }

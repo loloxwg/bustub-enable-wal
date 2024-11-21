@@ -127,7 +127,7 @@ auto MarkUndoVersionLink(ExecutorContext *exec_ctx, RID rid) -> bool {
   vul = VersionUndoLink{};
   vul->in_progress_ = true;
   vul->prev_ = undo_link;
-  
+
   auto fun = [&vul](std::optional<VersionUndoLink> ver_link) -> bool {
     if (!ver_link.has_value()) {
       return true;

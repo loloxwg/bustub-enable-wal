@@ -34,23 +34,18 @@
 namespace bustub {
 
 class CheckUpdateObject {
-public:
-  explicit CheckUpdateObject(const TupleMeta &meta, const Tuple &tuple, RID rid) : tuple_(tuple), rid_(rid){
+ public:
+  explicit CheckUpdateObject(const TupleMeta &meta, const Tuple &tuple, RID rid) : tuple_(tuple), rid_(rid) {}
 
-  }
-
-  auto operator() (const TupleMeta &meta, const Tuple &tuple, RID rid) -> bool {
+  auto operator()(const TupleMeta &meta, const Tuple &tuple, RID rid) -> bool {
     return IsTupleContentEqual(tuple_, tuple);
   }
-private:
-  //const TupleMeta &meta_;
+
+ private:
+  // const TupleMeta &meta_;
   const Tuple &tuple_;
   RID rid_;
-
 };
-
-
-  
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
@@ -78,18 +73,18 @@ void UpdateExecutor::Init() {
   if (primary_key_index_ != nullptr) {
     auto schema = table_info_->schema_;
     for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
-      auto& col = schema.GetColumn(i);
+      auto &col = schema.GetColumn(i);
       auto expr = plan_->target_expressions_[i];
       if (primary_key_index_->key_schema_.TryGetColIdx(col.GetName()).has_value()) {
-        if (dynamic_cast<ColumnValueExpression*>(expr.get()) == nullptr) {
+        if (dynamic_cast<ColumnValueExpression *>(expr.get()) == nullptr) {
           modify_primary_key_ = true;
           break;
         }
-        auto cv_expr = dynamic_cast<ColumnValueExpression*>(expr.get());
+        auto cv_expr = dynamic_cast<ColumnValueExpression *>(expr.get());
         if (cv_expr->GetColIdx() != i) {
           modify_primary_key_ = true;
           break;
-        } 
+        }
       }
     }
   }
@@ -102,11 +97,11 @@ void UpdateExecutor::Init() {
 // 那么这个事务通过index scan能获取事务最新的数据
 // 别的事务能通过index scan获取这个事务修改前的数据
 
-// update 
-// update本事务修改过的元组,修改本事务之前添加的UndoLog---可能,也可能没有,比如insert - update那就没有UndoLog.要是update - update那就是有
-// update本事务没修改的元组,需要添加UndoLog
-// Update有没有修改了主键
-//  -1 若修改了主键，那么为了别的事务能够index scan修改前的数据，需要把新的数据插入到table_meta，并且修改原来元组的元信息的is_deleted为true，但是不删除索引，而是添加索引
+// update
+// update本事务修改过的元组,修改本事务之前添加的UndoLog---可能,也可能没有,比如insert - update那就没有UndoLog.要是update
+// - update那就是有 update本事务没修改的元组,需要添加UndoLog Update有没有修改了主键
+//  -1 若修改了主键，那么为了别的事务能够index
+//  scan修改前的数据，需要把新的数据插入到table_meta，并且修改原来元组的元信息的is_deleted为true，但是不删除索引，而是添加索引
 //  -2 若没有修改主键，那么
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (called_) {
@@ -125,12 +120,12 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       if (meta.ts_ > txn->GetReadTs() && meta.ts_ != txn->GetTransactionTempTs()) {
         txn->SetTainted();
         throw ExecutionException(fmt::format("update_executor failed for {} in txn{}, read_ts{}", meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
+                                             txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
       }
       if (!MarkUndoVersionLink(exec_ctx_, updated_rid)) {
         txn->SetTainted();
         throw ExecutionException(fmt::format("update_executor failed for {} in txn{}, read_ts{}", meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
+                                             txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
       }
       txn->AppendWriteSet(table_info_->oid_, updated_rid);
 
@@ -165,16 +160,16 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       if (!heap_->UpdateTupleInPlace(meta, new_tuple, updated_rid, ch)) {
         txn->SetTainted();
         UnmarkUndoVersionLink(exec_ctx_, updated_rid);
-        throw ExecutionException(fmt::format("update_executor failed UpdateTupleInPlace for {} in txn{}, read_ts{}", meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));            
+        throw ExecutionException(fmt::format("update_executor failed UpdateTupleInPlace for {} in txn{}, read_ts{}",
+                                             meta.ts_, txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
       }
       UnmarkUndoVersionLink(exec_ctx_, updated_rid);
       count++;
     }
   } else {
-    
     std::vector<Tuple> tuples;
     std::vector<RID> rids;
+    std::vector<Tuple> keys;
     auto schema = child_executor_->GetOutputSchema();
     // 首先删除原来的元组，并且计算需要更新之后插入的元组
     while (child_executor_->Next(&updated_tuple, &updated_rid)) {
@@ -182,12 +177,12 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       if (meta.ts_ > txn->GetReadTs() && meta.ts_ != txn->GetTransactionTempTs()) {
         txn->SetTainted();
         throw ExecutionException(fmt::format("update_executor failed for {} in txn{}, read_ts{}", meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
+                                             txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
       }
       if (!MarkUndoVersionLink(exec_ctx_, updated_rid)) {
         txn->SetTainted();
         throw ExecutionException(fmt::format("update_executor failed for {} in txn{}, read_ts{}", meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
+                                             txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
       }
 
       std::vector<Value> values;
@@ -195,6 +190,21 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         values.emplace_back(expr->Evaluate(&updated_tuple, child_executor_->GetOutputSchema()));
       }
       Tuple new_tuple(values, &schema);
+
+      auto primary_schema = primary_key_index_->index_->GetKeySchema();
+      std::vector<uint32_t> col_idxs;
+      for (const auto &col : primary_schema->GetColumns()) {
+        col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
+      }
+      Tuple key = new_tuple.KeyFromTuple(table_info_->schema_, *primary_schema, col_idxs);
+      for (auto &tuple : keys) {
+        if (IsTupleContentEqual(tuple, key)) {
+          txn->SetTainted();
+          throw ExecutionException(fmt::format("more then one row key {}", key.ToString(primary_schema)));
+        }
+      }
+      keys.emplace_back(key);
+
       tuples.emplace_back(new_tuple);
       rids.emplace_back(updated_rid);
 
@@ -202,7 +212,8 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       // 本事务修改的——删除，那就只能有一个undo_log
       if (meta.ts_ == txn->GetTransactionTempTs()) {
         auto undo_link = txn_mgr->GetUndoLink(updated_rid);
-        if (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1 && undo_link->prev_txn_ == txn->GetTransactionId()) {
+        if (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1 &&
+            undo_link->prev_txn_ == txn->GetTransactionId()) {
           UndoLog undo_log = txn->GetUndoLog(undo_link->prev_log_idx_);
           auto origin_tuple = ReconstructTuple(&schema, updated_tuple, meta, {undo_log});
           if (origin_tuple.has_value()) {
@@ -260,7 +271,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         if (!MarkUndoVersionLink(exec_ctx_, new_rid.value())) {
           txn->SetTainted();
           throw ExecutionException(fmt::format("Other txn updating rid{}-{}, So txn{} failed", new_rid->GetPageId(),
-                                             new_rid->GetSlotNum(), txn->GetTransactionIdHumanReadable()));
+                                               new_rid->GetSlotNum(), txn->GetTransactionIdHumanReadable()));
         }
         txn->AppendWriteSet(table_info_->oid_, new_rid.value());
         if (!primary_key_index_->index_->InsertEntry(key, new_rid.value(), txn)) {
@@ -275,13 +286,13 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         if (!origin_meta.is_deleted_) {
           txn->SetTainted();
           throw ExecutionException(fmt::format("Rid{}-{} should be deleted, but not. So txn{} failed", rid.GetPageId(),
-                                             rid.GetSlotNum(), txn->GetTransactionIdHumanReadable()));
+                                               rid.GetSlotNum(), txn->GetTransactionIdHumanReadable()));
         }
 
         if (origin_meta.ts_ > txn->GetReadTs() && origin_meta.ts_ != txn->GetTransactionTempTs()) {
           txn->SetTainted();
           throw ExecutionException(fmt::format("update_executor failed for {} in txn{}, read_ts{}", origin_meta.ts_,
-                                            txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
+                                               txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));
         }
 
         if (!MarkUndoVersionLink(exec_ctx_, rid)) {
@@ -289,7 +300,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           throw ExecutionException("Write-write confilct at update_executor");
         }
         txn->AppendWriteSet(table_info_->oid_, rid);
-        
+
         if (origin_meta.ts_ == txn->GetTransactionTempTs()) {
           // 本事务删的
           // 需要维护undo_log，这个undo_log肯定是本事务之前维护过的
@@ -298,9 +309,10 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
           if (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1) {
             BUSTUB_ENSURE(undo_link->prev_txn_ == txn->GetTransactionId(), "Something wrong");
             auto undo_log = txn_mgr->GetUndoLog(undo_link.value());
-            auto old_tuple = ReconstructTuple(&schema, origin_tuple, origin_meta,{undo_log});
+            auto old_tuple = ReconstructTuple(&schema, origin_tuple, origin_meta, {undo_log});
             if (old_tuple.has_value()) {
-              auto new_undo_log = GenerateUndoLog(tuple, old_tuple.value(), &schema, undo_log.ts_, undo_log.prev_version_);
+              auto new_undo_log =
+                  GenerateUndoLog(tuple, old_tuple.value(), &schema, undo_log.ts_, undo_log.prev_version_);
               txn->ModifyUndoLog(undo_link->prev_log_idx_, new_undo_log);
             } else {
               assert(false);
@@ -309,22 +321,29 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         } else {
           // 本事务开启前就被删了
           // 相当于新插入，所以不需要插入和更新undo_log, 也不需要维护primary_index
-          //auto ver_link = txn_mgr->GetVersionLink(rid);
-          txn_mgr->UpdateUndoLink(rid, std::nullopt);
-          //BUSTUB_ASSERT(!ver_link.has_value(), "ver_link must be std::nullopt");
+          // auto ver_link = txn_mgr->GetVersionLink(rid);
+          UndoLog undo_log;
+          undo_log.is_deleted_ = true;
+          undo_log.ts_ = origin_meta.ts_;
+          auto undo_link = txn_mgr->GetUndoLink(rid);
+          if (undo_link.has_value()) {
+            undo_log.prev_version_ = undo_link.value();
+          }
+          txn_mgr->UpdateUndoLink(rid, txn->AppendUndoLog(undo_log));
+          // BUSTUB_ASSERT(!ver_link.has_value(), "ver_link must be std::nullopt");
         }
         CheckUpdateObject ch(origin_meta, origin_tuple, rid);
 
         if (!heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, tuple, rid, ch)) {
           txn->SetTainted();
           UnmarkUndoVersionLink(exec_ctx_, rid);
-          throw ExecutionException(fmt::format("update_executor failed UpdateTupleInPlace for {} in txn{}, read_ts{}", origin_meta.ts_,
-                                              txn->GetTransactionIdHumanReadable(), txn->GetReadTs()));            
+          throw ExecutionException(fmt::format("update_executor failed UpdateTupleInPlace for {} in txn{}, read_ts{}",
+                                               origin_meta.ts_, txn->GetTransactionIdHumanReadable(),
+                                               txn->GetReadTs()));
         }
         heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, tuple, rid);
         UnmarkUndoVersionLink(exec_ctx_, rid);
       }
-
     }
   }
 

@@ -67,7 +67,8 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // 本事务修改的，再删除，那就只能有一个undo_log
     if (meta.ts_ == txn->GetTransactionTempTs()) {
       auto undo_link = txn_mgr->GetUndoLink(deleted_rid);
-      if (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1 && undo_link->prev_txn_ == txn->GetTransactionId()) {
+      if (undo_link.has_value() && undo_link->IsValid() && undo_link->prev_log_idx_ != -1 &&
+          undo_link->prev_txn_ == txn->GetTransactionId()) {
         UndoLog undo_log = txn->GetUndoLog(undo_link->prev_log_idx_);
         auto origin_tuple = ReconstructTuple(&schema, deleted_tuple, meta, {undo_log});
         if (origin_tuple.has_value()) {
