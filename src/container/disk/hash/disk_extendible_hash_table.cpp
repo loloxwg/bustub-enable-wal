@@ -88,14 +88,14 @@ auto DiskExtendibleHashTable<K, V, KC>::GetValue(const K &key, std::vector<V> *r
  *****************************************************************************/
 template <typename K, typename V, typename KC>
 auto DiskExtendibleHashTable<K, V, KC>::Insert(const K &key, const V &value, Transaction *transaction) -> bool {
-  BasicPageGuard header_page_gurad = bpm_->FetchPageBasic(header_page_id_);
+  WritePageGuard header_page_gurad = bpm_->FetchPageWrite(header_page_id_);
   auto header_page = header_page_gurad.As<ExtendibleHTableHeaderPage>();
   auto hash = Hash(key);
   auto directory_idx = header_page->HashToDirectoryIndex(hash);
   auto directory_page_id = header_page->GetDirectoryPageId(directory_idx);
   if (directory_page_id == INVALID_PAGE_ID) {
-    WritePageGuard header_write_page_gurad = header_page_gurad.UpgradeWrite();
-    auto header_page = header_write_page_gurad.AsMut<ExtendibleHTableHeaderPage>();
+    // WritePageGuard header_write_page_gurad = header_page_gurad.UpgradeWrite();
+    auto header_page = header_page_gurad.AsMut<ExtendibleHTableHeaderPage>();
     return InsertToNewDirectory(header_page, directory_idx, hash, key, value);
   }
 

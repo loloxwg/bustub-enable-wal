@@ -5,18 +5,62 @@
 #include <random>
 #include <string>
 #include <thread>  // NOLINT
+#include <utility>
 #include "common/bustub_instance.h"
 #include "common/macros.h"
 #include "concurrency/transaction.h"
 #include "execution/execution_common.h"
 #include "fmt/core.h"
+#include "storage/index/extendible_hash_table_index.h"
 #include "txn_common.h"  // NOLINT
+
+#include <sys/time.h>
 
 namespace bustub {
 
 // NOLINTBEGIN(bugprone-unchecked-optional-access)
 
-TEST(TxnIndexTest, DISABLED_IndexConcurrentInsertTest) {  // NOLINT
+TEST(TxnIndexTest, Test1) {
+  auto disk_mgr = std::make_unique<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_unique<BufferPoolManager>(50, disk_mgr.get());
+  DiskExtendibleHashTable<int, int, IntComparator> ht("blah", bpm.get(), IntComparator(), HashFunction<int>(), 0, 2, 2);
+  int tcnt = 10;
+  int key_cnt = 1;
+  std::map<int, std::vector<bool>> operation_result;
+  std::mutex result_mutex;
+
+  std::vector<std::thread> insert_threads;
+  for (int th = 0; th < tcnt; th++) {
+    insert_threads.emplace_back([key_cnt, th, &ht, &result_mutex, &operation_result] {
+      std::vector<bool> result;
+      result.reserve(key_cnt);
+      for (int i = 0; i < key_cnt; i++) {
+        if (ht.Insert(i, th * 10 + i)) {
+          result.push_back(true);
+        } else {
+          result.push_back(false);
+        }
+      }
+      {
+        std::lock_guard<std::mutex> lck(result_mutex);
+        operation_result.emplace(th, std::move(result));
+      }
+    });
+  }
+  for (auto &&thread : insert_threads) {
+    thread.join();
+  }
+  for (auto &&vec : operation_result) {
+    std::cout << "Thread-" << vec.first << ": ";
+    for (auto &&k : vec.second) {
+      std::cout << k << ", ";
+    }
+    std::cout << std::endl;
+  }
+  ht.PrintHT();
+}
+
+TEST(TxnIndexTest, IndexConcurrentInsertTest) {  // NOLINT
   const auto generate_sql = [](int thread_id, int n) -> std::string {
     return fmt::format("INSERT INTO maintable VALUES ({}, {})", n, thread_id);
   };
@@ -96,7 +140,7 @@ TEST(TxnIndexTest, DISABLED_IndexConcurrentInsertTest) {  // NOLINT
   }
 }
 
-TEST(TxnIndexTest, DISABLED_IndexConcurrentUpdateTest) {  // NOLINT
+TEST(TxnIndexTest, IndexConcurrentUpdateTest) {  // NOLINT
   const auto generate_sql = [](int thread_id, int n) -> std::string {
     return fmt::format("UPDATE maintable SET b = b + {} WHERE a = {}", (1 << thread_id), n);
   };
@@ -192,7 +236,7 @@ TEST(TxnIndexTest, DISABLED_IndexConcurrentUpdateTest) {  // NOLINT
   }
 }
 
-TEST(TxnIndexTest, DISABLED_IndexConcurrentUpdateAbortTest) {  // NOLINT
+TEST(TxnIndexTest, IndexConcurrentUpdateAbortTest) {  // NOLINT
   const auto generate_sql = [](int n) -> std::string {
     return fmt::format("UPDATE maintable SET b = b + {} WHERE a = {}", 1, n);
   };

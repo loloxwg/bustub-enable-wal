@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/catalog.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/update_plan.h"
@@ -70,5 +71,7 @@ class UpdateExecutor : public AbstractExecutor {
   TableHeap *heap_;
   std::vector<IndexInfo *> indexs_;
   bool called_{false};
+  const IndexInfo *primary_key_index_{nullptr};
+  bool modify_primary_key_{false};
 };
 }  // namespace bustub

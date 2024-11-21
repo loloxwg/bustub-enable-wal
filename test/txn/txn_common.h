@@ -160,6 +160,24 @@ auto ExpectResult(const std::vector<std::vector<std::string>> &actual_result,
   return actual_result_rows == expected_result_rows;
 }
 
+void QueryShow(BustubInstance &instance, const std::string &txn_var_name, const std::string &query, Transaction *txn) {
+  std::stringstream ss;
+  auto writer = bustub::StringVectorWriter();
+  fmt::print(stderr, "- {} var={} query=\"{}\" ", Header("query"), txn_var_name, query);
+  if (!instance.ExecuteSqlTxn(query, writer, txn)) {
+    std::cerr << "failed to execute sql" << std::endl;
+    std::terminate();
+  }
+
+  std::cout << std::endl << "result is: " << writer.values_.size() << std::endl;
+  for (const auto &row : writer.values_) {
+    for (const auto &col : row) {
+      std::cout << col << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
 template <typename T>
 void Query(BustubInstance &instance, const std::string &txn_var_name, Transaction *txn, const std::string &query,
            const std::vector<std::vector<T>> &expected_rows, bool show_result) {

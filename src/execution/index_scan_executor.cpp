@@ -13,6 +13,9 @@
 #include <cassert>
 #include <vector>
 #include "catalog/catalog.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
+#include "execution/execution_common.h"
 
 namespace bustub {
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)
@@ -44,6 +47,39 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   assert(result.size() == 1);
 
   auto [meta, found_tuple] = table_heap_->GetTuple(result[0]);
+  auto txn_manager = GetExecutorContext()->GetTransactionManager();
+  auto txn = GetExecutorContext()->GetTransaction();
+
+  bool deteled = meta.is_deleted_;
+  if (meta.ts_ > txn->GetReadTs() && meta.ts_ != txn->GetTransactionId()) {
+    auto undo_link = txn_manager->GetUndoLink(result[0]);
+    if (!undo_link.has_value() || !undo_link->IsValid() || undo_link->prev_log_idx_ == -1) {
+      return false;
+    }
+    std::vector<UndoLog> undo_logs;
+    auto undo_log = txn_manager->GetUndoLog(undo_link.value());
+    undo_logs.emplace_back(undo_log);
+
+    while (undo_log.ts_ > txn->GetReadTs() && undo_log.prev_version_.IsValid() && undo_log.prev_version_.prev_log_idx_ != -1) {
+      undo_log = txn_manager->GetUndoLog(undo_log.prev_version_);
+      undo_logs.emplace_back(undo_log);
+    }
+    if (undo_log.ts_ > txn->GetReadTs()) {
+      return false;
+    }
+    auto result_tuple = ReconstructTuple(&GetOutputSchema(), found_tuple, meta, undo_logs);
+    if (result_tuple.has_value()) {
+      *tuple = result_tuple.value();
+      *rid = result[0];
+      return true;
+    }
+    return false;
+  }
+
+  if (deteled) {
+    return false;
+  }
+
   *tuple = found_tuple;
   *rid = result[0];
   return true;
