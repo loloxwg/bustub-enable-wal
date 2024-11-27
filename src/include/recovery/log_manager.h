@@ -43,6 +43,7 @@ class LogManager {
 
   void RunFlushThread();
   void StopFlushThread();
+  void Flush(bool force);
 
   auto AppendLogRecord(LogRecord *log_record) -> lsn_t;
 
@@ -69,6 +70,12 @@ class LogManager {
   std::condition_variable cv_;
 
   DiskManager *disk_manager_ __attribute__((__unused__));
+
+  lsn_t last_lsn_{INVALID_LSN};         // 最后一个日志 LSN
+  std::atomic_bool need_flush_{false};  // 是否需要 flush
+  std::condition_variable append_cv_;   // 追加等待变量
+  int32_t flush_buffer_size_{0};        // flush_buffer 大小
+  int32_t log_buffer_offset_{0};        // log_buffer 偏移
 };
 
 }  // namespace bustub

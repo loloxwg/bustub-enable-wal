@@ -46,6 +46,13 @@ auto TransactionManager::Begin(Transaction *txn, IsolationLevel isolation_level)
 void TransactionManager::Commit(Transaction *txn) {
   txn->SetState(TransactionState::COMMITTED);
 
+  if (enable_logging) {
+    // 事务提交日志
+    LogRecord log_record{txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT};
+    txn->SetPrevLSN(log_manager_->AppendLogRecord(&log_record));
+    log_manager_->Flush(false);  // 提交后记得刷磁盘，非强制
+  }
+
   // Perform all deletes before we commit.
   auto write_set = txn->GetWriteSet();
   while (!write_set->empty()) {

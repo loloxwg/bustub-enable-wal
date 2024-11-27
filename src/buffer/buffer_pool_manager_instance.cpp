@@ -38,51 +38,40 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
 }
 
 auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
-  std::scoped_lock<std::mutex> lock(latch_);
-
-  bool is_free_page = false;
-  for (size_t i = 0; i < pool_size_; i++) {
-    if (pages_[i].GetPinCount() == 0) {
-      is_free_page = true;
-      break;
-    }
-  }
-
-  if (!is_free_page) {
-    return nullptr;
-  }
-
+  std::lock_guard<std::mutex> lock(latch_);
   *page_id = AllocatePage();
-
-  frame_id_t frame_id;
-
+  // 寻找新的 frame_id
+  frame_id_t free_frame_id;
   if (!free_list_.empty()) {
-    frame_id = free_list_.front();
-    free_list_.pop_front();
+    free_frame_id = free_list_.front();
+    free_list_.pop_front();  // 删除最前面的
   } else {
-    // assert(replacer_->Evict(&frame_id));
-    replacer_->Evict(&frame_id);
-    page_id_t evicted_page_id = pages_[frame_id].GetPageId();
-
-    if (pages_[frame_id].IsDirty()) {
-      disk_manager_->WritePage(evicted_page_id, pages_[frame_id].GetData());
-      pages_[frame_id].is_dirty_ = false;
+    // 如果 free_list 中没有则淘汰一个页
+    bool ok = replacer_->Evict(&free_frame_id);
+    if (!ok) {
+      return nullptr;
     }
-
-    pages_[frame_id].ResetMemory();
-
-    page_table_->Remove(evicted_page_id);
   }
-
-  page_table_->Insert(*page_id, frame_id);
-
-  pages_[frame_id].page_id_ = *page_id;
-  pages_[frame_id].pin_count_ = 1;
-
-  replacer_->RecordAccess(frame_id);
-  replacer_->SetEvictable(frame_id, false);
-
-  return &pages_[frame_id];
+  auto page = &pages_[free_frame_id];
+  // 如果 free_frame_id 的页是脏的，则刷至磁盘
+  if (page->IsDirty()) {
+    // 写日志
+    if (enable_logging && log_manager_->GetPersistentLSN() < page->GetLSN()) {
+      log_manager_->Flush(true);
+    }
+    // 写到 page
+    disk_manager_->WritePage(page->GetPageId(), page->GetData());
+    page->is_dirty_ = false;
+  }
+  // 从 page_table 中删除 R，然后插入 P
+  page_table_->Remove(page->GetPageId());
+  page_table_->Insert(*page_id, free_frame_id);  // 更新
+  // 更新 P 的元数据
+  page->ResetMemory();  // 重置内存
+  page->page_id_ = *page_id;
+  page->pin_count_ = 0;
+  page->is_dirty_ = false;
+  return &pages_[free_frame_id];
 }
 
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
@@ -117,6 +106,9 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     page_id_t evicted_page_id = pages_[frame_id].GetPageId();
 
     if (pages_[frame_id].IsDirty()) {
+      if (enable_logging && log_manager_->GetPersistentLSN() < pages_[frame_id].GetLSN()) {
+        log_manager_->Flush(true);
+      }
       disk_manager_->WritePage(evicted_page_id, pages_[frame_id].GetData());
       pages_[frame_id].is_dirty_ = false;
     }
@@ -174,7 +166,15 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
     return false;
   }
 
-  disk_manager_->WritePage(page_id, pages_[frame_id].data_);
+  auto page = &pages_[frame_id];
+  if (page->IsDirty()) {
+    // 写日志
+    if (enable_logging && log_manager_->GetPersistentLSN() < page->GetLSN()) {
+      log_manager_->Flush(true);
+    }
+    disk_manager_->WritePage(page_id, page->GetData());
+    page->is_dirty_ = false;
+  }
   return true;
 }
 
@@ -192,17 +192,26 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   if (!page_table_->Find(page_id, frame_id)) {
     return true;
   }
+  auto page = &pages_[frame_id];
 
-  if (pages_[frame_id].GetPinCount() > 0) {
+  if (page->GetPinCount() > 0) {
     return false;
   }
 
-  replacer_->Remove(frame_id);
+  if (page->IsDirty()) {
+    // 写日志
+    if (enable_logging && log_manager_->GetPersistentLSN() < page->GetLSN()) {
+      log_manager_->Flush(true);
+    }
+    disk_manager_->WritePage(page->GetPageId(), page->GetData());
+    page->is_dirty_ = false;
+  }
 
-  pages_[frame_id].ResetMemory();
-  pages_[frame_id].page_id_ = INVALID_PAGE_ID;
-  pages_[frame_id].pin_count_ = 0;
-  pages_[frame_id].is_dirty_ = false;
+  replacer_->Remove(frame_id);
+  page->pin_count_ = 0;
+  page->is_dirty_ = false;
+  page->ResetMemory();
+  page->page_id_ = INVALID_PAGE_ID;
 
   page_table_->Remove(page_id);
   free_list_.push_back(frame_id);
