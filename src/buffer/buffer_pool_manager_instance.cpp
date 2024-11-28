@@ -65,6 +65,9 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     page_id_t evicted_page_id = pages_[frame_id].GetPageId();
 
     if (pages_[frame_id].IsDirty()) {
+      if (enable_logging && log_manager_->GetPersistentLSN() < pages_[frame_id].GetLSN()) {
+        log_manager_->Flush(true);
+      }
       disk_manager_->WritePage(evicted_page_id, pages_[frame_id].GetData());
       pages_[frame_id].is_dirty_ = false;
     }
@@ -117,6 +120,9 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
     page_id_t evicted_page_id = pages_[frame_id].GetPageId();
 
     if (pages_[frame_id].IsDirty()) {
+      if (enable_logging && log_manager_->GetPersistentLSN() < pages_[frame_id].GetLSN()) {
+        log_manager_->Flush(true);
+      }
       disk_manager_->WritePage(evicted_page_id, pages_[frame_id].GetData());
       pages_[frame_id].is_dirty_ = false;
     }
@@ -174,7 +180,14 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
     return false;
   }
 
-  disk_manager_->WritePage(page_id, pages_[frame_id].data_);
+  auto page = &pages_[frame_id];
+  if (page->IsDirty()) {
+    if (enable_logging && log_manager_->GetPersistentLSN() < page->GetLSN()) {
+      log_manager_->Flush(true);
+    }
+    disk_manager_->WritePage(page_id, pages_[frame_id].data_);
+    page->is_dirty_ = false;
+  }
   return true;
 }
 
@@ -193,8 +206,19 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
     return true;
   }
 
+  auto page = &pages_[frame_id];
+
   if (pages_[frame_id].GetPinCount() > 0) {
     return false;
+  }
+
+  if (page->IsDirty()) {
+    // 写日志
+    if (enable_logging && log_manager_->GetPersistentLSN() < page->GetLSN()) {
+      log_manager_->Flush(true);
+    }
+    disk_manager_->WritePage(page->GetPageId(), page->GetData());
+    page->is_dirty_ = false;
   }
 
   replacer_->Remove(frame_id);

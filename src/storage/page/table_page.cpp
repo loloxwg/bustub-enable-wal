@@ -75,17 +75,19 @@ auto TablePage::InsertTuple(const Tuple &tuple, RID *rid, Transaction *txn, Lock
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  // Write the log record.
-  //  if (enable_logging) {
-  //    BUSTUB_ASSERT(!txn->IsSharedLocked(*rid) && !txn->IsExclusiveLocked(*rid), "A new tuple should not be locked.");
-  //    // Acquire an exclusive lock on the new tuple.
-  //    bool locked = lock_manager->LockExclusive(txn, *rid);
-  //    BUSTUB_ENSURE(locked, "Locking a new tuple should always work.");
-  //    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::INSERT, *rid, tuple);
-  //    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
-  //    SetLSN(lsn);
-  //    txn->SetPrevLSN(lsn);
-  //  }
+  // Write the log record.
+  if (enable_logging) {
+    //      txn->AddIntoDeletedPageSet()
+    //      BUSTUB_ASSERT(!txn->IsSharedLocked(*rid) && !txn->IsExclusiveLocked(*rid), "A new tuple should not be
+    //      locked.");
+    //      // Acquire an exclusive lock on the new tuple.
+    //      bool locked = lock_manager->LockExclusive(txn, *rid);
+    //      BUSTUB_ENSURE(locked, "Locking a new tuple should always work.");
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::INSERT, *rid, tuple);
+    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
+    SetLSN(lsn);
+    txn->SetPrevLSN(lsn);
+  }
   return true;
 }
 
@@ -113,21 +115,21 @@ auto TablePage::MarkDelete(const RID &rid, Transaction *txn, LockManager *lock_m
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  if (enable_logging) {
-  //    // Acquire an exclusive lock, upgrading from a shared lock if necessary.
-  //    if (txn->IsSharedLocked(rid)) {
-  //      if (!lock_manager->LockUpgrade(txn, rid)) {
-  //        return false;
-  //      }
-  //    } else if (!txn->IsExclusiveLocked(rid) && !lock_manager->LockExclusive(txn, rid)) {
-  //      return false;
-  //    }
-  //    Tuple dummy_tuple;
-  //    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::MARKDELETE, rid, dummy_tuple);
-  //    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
-  //    SetLSN(lsn);
-  //    txn->SetPrevLSN(lsn);
-  //  }
+  if (enable_logging) {
+    // Acquire an exclusive lock, upgrading from a shared lock if necessary.
+    //      if (txn->IsSharedLocked(rid)) {
+    //        if (!lock_manager->LockUpgrade(txn, rid)) {
+    //          return false;
+    //        }
+    //      } else if (!txn->IsExclusiveLocked(rid) && !lock_manager->LockExclusive(txn, rid)) {
+    //        return false;
+    //      }
+    Tuple dummy_tuple;
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::MARKDELETE, rid, dummy_tuple);
+    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
+    SetLSN(lsn);
+    txn->SetPrevLSN(lsn);
+  }
 
   // Mark the tuple as deleted.
   if (tuple_size > 0) {
@@ -175,18 +177,20 @@ auto TablePage::UpdateTuple(const Tuple &new_tuple, Tuple *old_tuple, const RID 
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  if (enable_logging) {
-  //    // Acquire an exclusive lock, upgrading from shared if necessary.
-  //    if (txn->IsSharedLocked(rid)) {
-  //      if (!lock_manager->LockUpgrade(txn, rid)) {
-  //        return false;
-  //      }
-  //    } else if (!txn->IsExclusiveLocked(rid) && !lock_manager->LockExclusive(txn, rid)) {
-  //      return false;
-  //    }
-  //    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::UPDATE, rid, *old_tuple,
-  //    new_tuple); lsn_t lsn = log_manager->AppendLogRecord(&log_record); SetLSN(lsn); txn->SetPrevLSN(lsn);
-  //  }
+  if (enable_logging) {
+    // Acquire an exclusive lock, upgrading from shared if necessary.
+    //      if (txn->IsSharedLocked(rid)) {
+    //        if (!lock_manager->LockUpgrade(txn, rid)) {
+    //          return false;
+    //        }
+    //      } else if (!txn->IsExclusiveLocked(rid) && !lock_manager->LockExclusive(txn, rid)) {
+    //        return false;
+    //      }
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::UPDATE, rid, *old_tuple, new_tuple);
+    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
+    SetLSN(lsn);
+    txn->SetPrevLSN(lsn);
+  }
 
   // Perform the update.
   uint32_t free_space_pointer = GetFreeSpacePointer();
@@ -232,14 +236,14 @@ void TablePage::ApplyDelete(const RID &rid, Transaction *txn, LogManager *log_ma
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  if (enable_logging) {
-  //    BUSTUB_ASSERT(txn->IsExclusiveLocked(rid), "We must own the exclusive lock!");
-  //
-  //    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::APPLYDELETE, rid, delete_tuple);
-  //    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
-  //    SetLSN(lsn);
-  //    txn->SetPrevLSN(lsn);
-  //  }
+  if (enable_logging) {
+    //    BUSTUB_ASSERT(txn->IsExclusiveLocked(rid), "We must own the exclusive lock!");
+
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::APPLYDELETE, rid, delete_tuple);
+    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
+    SetLSN(lsn);
+    txn->SetPrevLSN(lsn);
+  }
 
   uint32_t free_space_pointer = GetFreeSpacePointer();
   BUSTUB_ASSERT(tuple_offset >= free_space_pointer, "Free space appears before tuples.");
@@ -258,19 +262,20 @@ void TablePage::ApplyDelete(const RID &rid, Transaction *txn, LogManager *log_ma
     }
   }
 }
-
 void TablePage::RollbackDelete(const RID &rid, Transaction *txn, LogManager *log_manager) {
   // Log the rollback.
   /**
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  if (enable_logging) {
-  //    BUSTUB_ASSERT(txn->IsExclusiveLocked(rid), "We must own an exclusive lock on the RID.");
-  //    Tuple dummy_tuple;
-  //    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ROLLBACKDELETE, rid,
-  //    dummy_tuple); lsn_t lsn = log_manager->AppendLogRecord(&log_record); SetLSN(lsn); txn->SetPrevLSN(lsn);
-  //  }
+  if (enable_logging) {
+    //      BUSTUB_ASSERT(txn->IsExclusiveLocked(rid), "We must own an exclusive lock on the RID.");
+    Tuple dummy_tuple;
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ROLLBACKDELETE, rid, dummy_tuple);
+    lsn_t lsn = log_manager->AppendLogRecord(&log_record);
+    SetLSN(lsn);
+    txn->SetPrevLSN(lsn);
+  }
 
   uint32_t slot_num = rid.GetSlotNum();
   BUSTUB_ASSERT(slot_num < GetTupleCount(), "We can't have more slots than tuples.");
@@ -306,12 +311,12 @@ auto TablePage::GetTuple(const RID &rid, Tuple *tuple, Transaction *txn, LockMan
    * Removed to support new lock manager API for p4 (multilevel locking); Big hack energy
    * This clause was used in logging and recovery projects previously; not being used right now
    */
-  //  // Otherwise we have a valid tuple, try to acquire at least a shared lock.
-  //  if (enable_logging) {
-  //    if (!txn->IsSharedLocked(rid) && !txn->IsExclusiveLocked(rid) && !lock_manager->LockShared(txn, rid)) {
-  //      return false;
+  //    // Otherwise we have a valid tuple, try to acquire at least a shared lock.
+  //    if (enable_logging) {
+  //      if (!txn->IsSharedLocked(rid) && !txn->IsExclusiveLocked(rid) && !lock_manager->LockShared(txn, rid)) {
+  //        return false;
+  //      }
   //    }
-  //  }
 
   // At this point, we have at least a shared lock on the RID. Copy the tuple data into our result.
   uint32_t tuple_offset = GetTupleOffsetAtSlot(slot_num);
