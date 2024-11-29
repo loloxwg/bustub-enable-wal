@@ -39,7 +39,7 @@ class LogRecovery {
 
   void Redo();
   void Undo();
-  auto DeserializeLogRecord(const char *data, LogRecord *log_record) -> bool;
+  auto DeserializeLogRecord(const char *data, LogRecord *log_record) const -> bool;
 
  private:
   DiskManager *disk_manager_ __attribute__((__unused__));

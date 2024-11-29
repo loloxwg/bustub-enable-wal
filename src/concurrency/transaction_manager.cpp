@@ -59,6 +59,14 @@ void TransactionManager::Commit(Transaction *txn) {
   }
   write_set->clear();
 
+  if (enable_logging) {
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::COMMIT);
+    auto lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
+    // TODO:cwhen committing ,we need to group commit log_manager_->Flush(false);
+    log_manager_->Flush(false);
+  }
+
   // Release all the locks.
   ReleaseLocks(txn);
   // Release the global transaction latch.
@@ -108,6 +116,13 @@ void TransactionManager::Abort(Transaction *txn) {
   }
   table_write_set->clear();
   index_write_set->clear();
+
+  if (enable_logging) {
+    LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::ABORT);
+    auto lsn = log_manager_->AppendLogRecord(&log_record);
+    txn->SetPrevLSN(lsn);
+    log_manager_->Flush(false);
+  }
 
   // Release all the locks.
   ReleaseLocks(txn);

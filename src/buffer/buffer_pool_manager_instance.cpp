@@ -127,6 +127,9 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
     return false;
   }
   // flush regardless of dirty or not
+  if (enable_logging && log_manager_->GetPersistentLSN() < pages_[frame_id].GetLSN()) {
+    log_manager_->Flush(true);
+  }
   disk_manager_->WritePage(page_id, pages_[frame_id].GetData());
   pages_[frame_id].is_dirty_ = false;  // reset dirty flag regardless
 
@@ -138,6 +141,14 @@ void BufferPoolManagerInstance::FlushAllPgsImp() {
   for (size_t i = 0; i < pool_size_; i++) {
     if (pages_[i].page_id_ != INVALID_PAGE_ID) {
       // there is a valid physical page resides, regardless of dirty or not
+      frame_id_t frame_id;
+      if (!page_table_->Find(pages_[i].page_id_, frame_id)) {
+        // page id is not present in the buffer pool
+        return;
+      }
+      if (enable_logging && log_manager_->GetPersistentLSN() < pages_[frame_id].GetLSN()) {
+        log_manager_->Flush(true);
+      }
       disk_manager_->WritePage(pages_[i].page_id_, pages_[i].GetData());
       pages_[i].is_dirty_ = false;
     }
@@ -191,6 +202,9 @@ auto BufferPoolManagerInstance::FindVictim(frame_id_t *available_frame_id) -> bo
     if (pages_[*available_frame_id].IsDirty()) {
       // the page to be evicted is dirty, flush out
       // don't call FlushPgImp, otherwise lead to deadlock
+      if (enable_logging && log_manager_->GetPersistentLSN() < pages_[*available_frame_id].GetLSN()) {
+        log_manager_->Flush(true);
+      }
       disk_manager_->WritePage(pages_[*available_frame_id].page_id_, pages_[*available_frame_id].GetData());
       pages_[*available_frame_id].is_dirty_ = false;  // reset dirty flag regardless
     }
