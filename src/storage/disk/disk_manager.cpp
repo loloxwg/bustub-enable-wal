@@ -163,8 +163,8 @@ void DiskManager::WriteLog(char *log_data, int size) {
  */
 auto DiskManager::ReadLog(char *log_data, int size, int offset) -> bool {
   if (offset >= GetFileSize(log_name_)) {
-    // LOG_DEBUG("end of log file");
-    // LOG_DEBUG("file size is %d", GetFileSize(log_name_));
+    LOG_DEBUG("end of log file");
+    LOG_DEBUG("file size is %d", GetFileSize(log_name_));
     return false;
   }
   log_io_.seekp(offset);
