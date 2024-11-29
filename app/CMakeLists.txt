@@ -1,6 +1,6 @@
 include_directories(./)
 
-add_executable(simple_db simple_db.cpp)
+add_executable(simple_db simple_db.cpp tuple_util.cpp)
 add_executable(simple_sql db.cpp tuple_util.cpp simple_sql.cpp)
 add_executable(spsql_d db.cpp tuple_util.cpp spsql_d.cpp)
 add_executable(spsql_client spsql_client.cpp)

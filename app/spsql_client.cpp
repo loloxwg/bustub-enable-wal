@@ -77,17 +77,19 @@ void sig_handler(int signo) { wait_group.done(); }
 int main(int argc, char *argv[]) {
   WFHttpTask *task;
 
-  if (argc != 2) {
-    fprintf(stderr, "USAGE: %s <http URL>\n", argv[0]);
-    exit(1);
-  }
+//  if (argc != 2) {
+//    fprintf(stderr, "USAGE: %s <http URL>\n", argv[0]);
+//    exit(1);
+//  }
 
   signal(SIGINT, sig_handler);
 
-  std::string url = argv[1];
-  if (strncasecmp(argv[1], "http://", 7) != 0 && strncasecmp(argv[1], "https://", 8) != 0) {
-    url = "http://" + url;
-  }
+//  std::string url = argv[1];
+//  if (strncasecmp(argv[1], "http://", 7) != 0 && strncasecmp(argv[1], "https://", 8) != 0) {
+//    url = "http://" + url;
+//  }
+
+  std::string url = "http://127.0.0.1:8888";
 
   task = WFTaskFactory::create_http_task(url, REDIRECT_MAX, RETRY_MAX, wget_callback);
   protocol::HttpRequest *req = task->get_req();

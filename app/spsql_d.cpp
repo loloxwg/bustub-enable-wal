@@ -14,6 +14,9 @@ int main(int argc, char *argv[]) {
   std::string path = argv[1];
   spdlog::debug("init sql db at {0}", path);
   SimpleSQL db_instance(std::move(path));
+  db_instance.GetDB()->log_recovery_->Redo();
+  db_instance.GetDB()->log_recovery_->Undo();
+  db_instance.GetDB()->log_manager_->RunFlushThread();
 
   WFHttpServer server([&db_instance](WFHttpTask *task) {
     auto req = task->get_req();
