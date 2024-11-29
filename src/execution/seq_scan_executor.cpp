@@ -84,7 +84,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       obtain_lock_ = false;
       return true;
     }  // not what the filter wants, move to next tuple
-    cursor_++;
+    ++cursor_;
   }
   return false;
 }
