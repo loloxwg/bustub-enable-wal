@@ -100,7 +100,7 @@ void LogRecovery::Redo() {
       // 新页
       if (log.log_record_type_ == LogRecordType::NEWPAGE) {
         // 获取新页
-        auto page = reinterpret_cast<TablePage *>(buffer_pool_manager_->FetchPage(log.page_id_));
+        auto page = reinterpret_cast<TablePage *>(buffer_pool_manager_->NewPage(&log.page_id_));
         assert(page != nullptr);
         bool need_redo = log.lsn_ > page->GetLSN();  // 判断 lsn 是否需要重做
         if (need_redo) {                             // redo

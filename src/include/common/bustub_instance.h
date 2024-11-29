@@ -40,6 +40,7 @@ class LogManager;
 class CheckpointManager;
 class Catalog;
 class ExecutionEngine;
+class LogRecovery;
 
 class ResultWriter {
  public:
@@ -253,6 +254,7 @@ class BustubInstance {
   Catalog *catalog_;
   ExecutionEngine *execution_engine_;
   std::shared_mutex catalog_lock_;
+  LogRecovery *log_recovery_;
 
   auto GetSessionVariable(const std::string &key) -> std::string {
     if (session_variables_.find(key) != session_variables_.end()) {

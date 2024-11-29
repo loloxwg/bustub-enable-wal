@@ -50,7 +50,7 @@ class RecoveryTest : public ::testing::Test {
 
 // NOLINTNEXTLINE
 TEST_F(RecoveryTest, RedoTest) {
-  auto *bustub_instance = new BustubInstance("test.db");
+  auto *bustub_instance = new BustubInstance("test1.db");
 
   ASSERT_FALSE(enable_logging);
   LOG_INFO("Skip system recovering...");
@@ -92,7 +92,7 @@ TEST_F(RecoveryTest, RedoTest) {
   delete bustub_instance;
 
   LOG_INFO("System restart...");
-  bustub_instance = new BustubInstance("test.db");
+  bustub_instance = new BustubInstance("test1.db");
 
   ASSERT_FALSE(enable_logging);
   LOG_INFO("Check if tuple is not in table before recovery");
@@ -139,7 +139,7 @@ TEST_F(RecoveryTest, RedoTest) {
 
 // NOLINTNEXTLINE
 TEST_F(RecoveryTest, UndoTest) {
-  auto *bustub_instance = new BustubInstance("test.db");
+  auto *bustub_instance = new BustubInstance("test2.db");
 
   ASSERT_FALSE(enable_logging);
   LOG_INFO("Skip system recovering...");
@@ -176,7 +176,7 @@ TEST_F(RecoveryTest, UndoTest) {
   delete bustub_instance;
 
   LOG_INFO("System restarted..");
-  bustub_instance = new BustubInstance("test.db");
+  bustub_instance = new BustubInstance("test2.db");
 
   LOG_INFO("Check if tuple exists before recovery");
   Tuple old_tuple;
@@ -218,7 +218,7 @@ TEST_F(RecoveryTest, UndoTest) {
 
 // NOLINTNEXTLINE
 TEST_F(RecoveryTest, CheckpointTest) {
-  auto *bustub_instance = new BustubInstance("test.db");
+  auto *bustub_instance = new BustubInstance("test3.db");
 
   EXPECT_FALSE(enable_logging);
   LOG_INFO("Skip system recovering...");

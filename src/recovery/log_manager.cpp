@@ -49,7 +49,7 @@ void LogManager::RunFlushThread() {
         std::swap(log_buffer_offset_, flush_buffer_size_);
         // 写日志
         disk_manager_->WriteLog(flush_buffer_, flush_buffer_size_);
-        LOG_INFO("Flush log to disk");
+        // LOG_INFO("Flush log to disk");
         flush_buffer_size_ = 0;       // flush_buffer 大小为 0
         SetPersistentLSN(last_lsn_);  // 设置持久化日志序号
       }

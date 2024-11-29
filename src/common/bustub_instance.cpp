@@ -15,6 +15,7 @@
 #include "catalog/schema.h"
 #include "catalog/table_generator.h"
 #include "common/bustub_instance.h"
+#include <recovery/log_recovery.h>
 #include "common/enums/statement_type.h"
 #include "common/exception.h"
 #include "common/util/string_util.h"
@@ -71,6 +72,8 @@ BustubInstance::BustubInstance(const std::string &db_file_name) {
 
   // Execution engine.
   execution_engine_ = new ExecutionEngine(buffer_pool_manager_, txn_manager_, catalog_);
+
+  log_recovery_ = new LogRecovery(disk_manager_,buffer_pool_manager_);
 }
 
 BustubInstance::BustubInstance() {
