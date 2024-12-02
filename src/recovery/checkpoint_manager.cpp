@@ -32,6 +32,11 @@ void CheckpointManager::EndCheckpoint() {
 }
 
 void CheckpointManager::RunCheckPointThread() {
+  if (enable_checkpointing) {
+    return;
+  }
+
+  enable_checkpointing = true;
   checkpoint_thread_ = new std::thread([&] {
     while (true) {
       std::this_thread::sleep_for(checkpoint_timeout);
@@ -42,6 +47,7 @@ void CheckpointManager::RunCheckPointThread() {
 }
 
 void CheckpointManager::StopFlushThread() {
+  enable_checkpointing = false;
   checkpoint_thread_->join();
   delete checkpoint_thread_;
   checkpoint_thread_ = nullptr;
