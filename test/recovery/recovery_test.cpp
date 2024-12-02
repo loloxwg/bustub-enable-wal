@@ -243,7 +243,7 @@ TEST_F(RecoveryTest, CheckpointTest) {
   auto val_1 = tuple.GetValue(&schema, 1);
 
   // set log time out very high so that flush doesn't happen before checkpoint is performed
-  log_timeout = std::chrono::seconds(15);
+  log_timeout = std::chrono::seconds(3);
 
   // insert a ton of tuples
   Transaction *txn1 = bustub_instance->txn_manager_->Begin();

@@ -155,7 +155,6 @@ auto LogManager::AppendLogRecord(LogRecord *log_record) -> lsn_t {
       for (const auto &column : log_record->columns_) {
         column.SerializeTo(log_buffer_ + pos);
       }
-
       break;
     }
 
