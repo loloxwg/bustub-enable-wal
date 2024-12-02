@@ -402,7 +402,9 @@ BustubInstance::~BustubInstance() {
   if (enable_logging) {
     log_manager_->StopFlushThread();
   }
-  checkpoint_manager_->StopFlushThread();
+  if (enable_checkpointing) {
+    checkpoint_manager_->StopFlushThread();
+  }
   delete execution_engine_;
   delete catalog_;
   delete checkpoint_manager_;

@@ -15,6 +15,7 @@
 namespace bustub {
 
 std::atomic<bool> enable_logging(false);
+std::atomic<bool> enable_checkpointing(false);
 
 std::chrono::duration<int64_t> log_timeout = std::chrono::seconds(1);
 std::chrono::duration<int64_t> checkpoint_timeout = std::chrono::seconds(2);

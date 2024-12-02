@@ -27,6 +27,7 @@ extern std::atomic<bool> enable_logging;
 /** If ENABLE_LOGGING is true, the log should be flushed to disk every LOG_TIMEOUT. */
 extern std::chrono::duration<int64_t> log_timeout;
 
+extern std::atomic<bool> enable_checkpointing;
 extern std::chrono::duration<int64_t> checkpoint_timeout;
 
 static constexpr int INVALID_PAGE_ID = -1;                                           // invalid page id
