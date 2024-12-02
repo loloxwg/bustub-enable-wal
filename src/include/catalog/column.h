@@ -30,6 +30,7 @@ class Column {
   friend class Schema;
 
  public:
+  Column() = default;
   /**
    * Non-variable-length constructor for creating a Column.
    * @param column_name name of the column
@@ -66,6 +67,16 @@ class Column {
         fixed_length_(column.fixed_length_),
         variable_length_(column.variable_length_),
         column_offset_(column.column_offset_) {}
+  /**
+   * From wal
+   */
+  Column(std::string column_name, const TypeId type, uint32_t fixed_length, u_int32_t variable_length,
+         uint32_t column_offset)
+      : column_name_(std::move(column_name)),
+        column_type_(type),
+        fixed_length_(fixed_length),
+        variable_length_(variable_length),
+        column_offset_(column_offset) {}
 
   /** @return column name */
   auto GetName() const -> std::string { return column_name_; }
@@ -95,6 +106,9 @@ class Column {
 
   /** @return a string representation of this column */
   auto ToString(bool simplified = true) const -> std::string;
+
+  void SerializeTo(char *storage) const;
+  void DeserializeFrom(const char *storage);
 
  private:
   /**
