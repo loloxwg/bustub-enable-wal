@@ -1,3 +1,4 @@
+#include <recovery/checkpoint_manager.h>
 #include <recovery/log_recovery.h>
 
 #include <iostream>
@@ -33,6 +34,7 @@ auto main(int argc, char **argv) -> int {
   bustub->log_recovery_->Redo();
   bustub->log_recovery_->Undo();
   bustub->log_manager_->RunFlushThread();
+  bustub->checkpoint_manager_->RunCheckPointThread();
 
   auto default_prompt = "bustub> ";
   auto emoji_prompt = "\U0001f6c1> ";  // the bathtub emoji

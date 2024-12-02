@@ -31,4 +31,20 @@ void CheckpointManager::EndCheckpoint() {
   transaction_manager_->ResumeTransactions();
 }
 
+void CheckpointManager::RunCheckPointThread() {
+  checkpoint_thread_ = new std::thread([&] {
+    while (true) {
+      std::this_thread::sleep_for(checkpoint_timeout);
+      BeginCheckpoint();
+      EndCheckpoint();
+    }
+  });
+}
+
+void CheckpointManager::StopFlushThread() {
+  checkpoint_thread_->join();
+  delete checkpoint_thread_;
+  checkpoint_thread_ = nullptr;
+}
+
 }  // namespace bustub

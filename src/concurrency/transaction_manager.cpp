@@ -33,8 +33,8 @@ auto TransactionManager::Begin(Transaction *txn, IsolationLevel isolation_level)
   }
 
   if (enable_logging) {
-    LogRecord record = LogRecord(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::BEGIN);
-    lsn_t lsn = log_manager_->AppendLogRecord(&record);
+    LogRecord log_record = LogRecord(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::BEGIN);
+    lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
     txn->SetPrevLSN(lsn);
   }
 

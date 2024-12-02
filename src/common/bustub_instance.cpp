@@ -16,8 +16,6 @@
 #include "catalog/table_generator.h"
 #include "common/bustub_instance.h"
 
-#include <recovery/log_recovery.h>
-
 #include "common/enums/statement_type.h"
 #include "common/exception.h"
 #include "common/util/string_util.h"
@@ -34,6 +32,7 @@
 #include "planner/planner.h"
 #include "recovery/checkpoint_manager.h"
 #include "recovery/log_manager.h"
+#include "recovery/log_recovery.h"
 #include "storage/disk/disk_manager.h"
 #include "storage/disk/disk_manager_memory.h"
 #include "type/value_factory.h"
@@ -403,6 +402,7 @@ BustubInstance::~BustubInstance() {
   if (enable_logging) {
     log_manager_->StopFlushThread();
   }
+  checkpoint_manager_->StopFlushThread();
   delete execution_engine_;
   delete catalog_;
   delete checkpoint_manager_;

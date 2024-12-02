@@ -33,11 +33,14 @@ class CheckpointManager {
 
   void BeginCheckpoint();
   void EndCheckpoint();
+  void RunCheckPointThread();
+  void StopFlushThread();
 
  private:
   TransactionManager *transaction_manager_ __attribute__((__unused__));
   LogManager *log_manager_ __attribute__((__unused__));
   BufferPoolManager *buffer_pool_manager_ __attribute__((__unused__));
+  std::thread *checkpoint_thread_;
 };
 
 }  // namespace bustub
