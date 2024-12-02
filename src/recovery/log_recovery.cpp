@@ -12,6 +12,8 @@
 
 #include "recovery/log_recovery.h"
 
+#include <catalog/catalog.h>
+
 #include "storage/page/table_page.h"
 
 namespace bustub {
@@ -64,6 +66,24 @@ bool LogRecovery::DeserializeLogRecord(const char *data, LogRecord *log_record) 
     case LogRecordType::BEGIN:
     case LogRecordType::COMMIT:
     case LogRecordType::ABORT:
+      break;
+
+    case LogRecordType::CREATETABLE:
+      int table_name_size;
+      memcpy(&table_name_size, data + pos, sizeof(int));
+      pos += sizeof(int);
+      log_record->table_name_.resize(table_name_size);
+      memcpy(log_record->table_name_.data(), data + pos, table_name_size);
+      pos += log_record->table_name_.size();
+      int column_num;
+      memcpy(&column_num, data + pos, sizeof(int));
+      pos += sizeof(int);
+      log_record->columns_.reserve(column_num);
+      log_record->columns_.resize(column_num);
+      for (int i = 0; i < column_num; i++) {
+        log_record->columns_[i].DeserializeFrom(data + pos);
+        pos += sizeof(Column);
+      }
       break;
 
     default:
@@ -172,6 +192,10 @@ void LogRecovery::Redo() {
           }
 
           buffer_pool_manager_->UnpinPage(page_id, page->GetLSN() < lsn);
+          break;
+        }
+        case LogRecordType::CREATETABLE: {
+          catalog_->CreateTable(nullptr, log_record.table_name_, Schema(log_record.columns_));
           break;
         }
 

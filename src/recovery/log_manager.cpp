@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "recovery/log_manager.h"
+#include <recovery/log_recovery.h>
 
 namespace bustub {
 /*
@@ -141,6 +142,22 @@ auto LogManager::AppendLogRecord(LogRecord *log_record) -> lsn_t {
       pos += sizeof(page_id_t);
       memcpy(log_buffer_ + pos, &log_record->page_id_, sizeof(page_id_t));
       break;
+
+    case LogRecordType::CREATETABLE: {
+      int table_name_size = log_record->table_name_.size();
+      memcpy(log_buffer_ + pos, &table_name_size, sizeof(int));
+      pos += sizeof(int);
+      memcpy(log_buffer_ + pos, log_record->table_name_.data(), table_name_size);
+      pos += table_name_size;
+      int column_size = log_record->columns_.size();
+      memcpy(log_buffer_ + pos, &column_size, sizeof(int));
+      pos += sizeof(int);
+      for (const auto &column : log_record->columns_) {
+        column.SerializeTo(log_buffer_ + pos);
+      }
+
+      break;
+    }
 
     default:
       break;

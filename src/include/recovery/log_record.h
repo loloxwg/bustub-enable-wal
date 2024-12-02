@@ -32,6 +32,8 @@ enum class LogRecordType {
   ABORT,
   /** Creating a new page in the table heap. */
   NEWPAGE,
+
+  CREATETABLE
 };
 
 /**
@@ -54,6 +56,10 @@ enum class LogRecordType {
  * | HEADER | tuple_rid | tuple_size | old_tuple_data | tuple_size | new_tuple_data |
  *-----------------------------------------------------------------------------------
  * For new page type log record
+ *--------------------------
+ * | HEADER | prev_page_id |
+ *--------------------------
+ * For create table
  *--------------------------
  * | HEADER | prev_page_id |
  *--------------------------
@@ -108,6 +114,15 @@ class LogRecord {
         page_id_(page_id) {
     // calculate log record size, header size + sizeof(prev_page_id) + sizeof(page_id)
     size_ = HEADER_SIZE + sizeof(page_id_t) * 2;
+  }
+
+  // constructor for CREATETABLE type
+  LogRecord(txn_id_t txn_id, lsn_t prev_lsn, LogRecordType log_record_type, const std::string &table_name,
+            std::vector<Column> columns)
+      : txn_id_(txn_id), prev_lsn_(prev_lsn), log_record_type_(log_record_type) {
+    size_ = HEADER_SIZE + table_name.size() + sizeof(Schema);
+    table_name_ = table_name;
+    columns_ = columns;
   }
 
   ~LogRecord() = default;
@@ -177,6 +192,10 @@ class LogRecord {
   page_id_t prev_page_id_{INVALID_PAGE_ID};
   page_id_t page_id_{INVALID_PAGE_ID};
   static const int HEADER_SIZE = 20;
+
+  // case5: for create table operation
+  std::string table_name_;
+  std::vector<Column> columns_{};
 };  // namespace bustub
 
 }  // namespace bustub

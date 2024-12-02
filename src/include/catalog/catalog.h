@@ -351,10 +351,10 @@ class Catalog {
    *
    * NOTE: `tables_` owns all table metadata.
    */
-  std::unordered_map<table_oid_t, std::unique_ptr<TableInfo>> tables_;
+  std::unordered_map<table_oid_t, std::unique_ptr<TableInfo>> tables_{};
 
   /** Map table name -> table identifiers. */
-  std::unordered_map<std::string, table_oid_t> table_names_;
+  std::unordered_map<std::string, table_oid_t> table_names_{};
 
   /** The next table identifier to be used. */
   std::atomic<table_oid_t> next_table_oid_{0};
@@ -364,10 +364,10 @@ class Catalog {
    *
    * NOTE: that `indexes_` owns all index metadata.
    */
-  std::unordered_map<index_oid_t, std::unique_ptr<IndexInfo>> indexes_;
+  std::unordered_map<index_oid_t, std::unique_ptr<IndexInfo>> indexes_{};
 
   /** Map table name -> index names -> index identifiers. */
-  std::unordered_map<std::string, std::unordered_map<std::string, index_oid_t>> index_names_;
+  std::unordered_map<std::string, std::unordered_map<std::string, index_oid_t>> index_names_{};
 
   /** The next index identifier to be used. */
   std::atomic<index_oid_t> next_index_oid_{0};

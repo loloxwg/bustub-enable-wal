@@ -1,3 +1,5 @@
+#include <recovery/log_recovery.h>
+
 #include <iostream>
 #include <string>
 #include "binder/binder.h"
@@ -28,6 +30,9 @@ auto main(int argc, char **argv) -> int {
   ft_set_u8strwid_func(&GetWidthOfUtf8);
 
   auto bustub = std::make_unique<bustub::BustubInstance>("test.db");
+  bustub->log_recovery_->Redo();
+  bustub->log_recovery_->Undo();
+  bustub->log_manager_->RunFlushThread();
 
   auto default_prompt = "bustub> ";
   auto emoji_prompt = "\U0001f6c1> ";  // the bathtub emoji
@@ -45,11 +50,11 @@ auto main(int argc, char **argv) -> int {
     }
   }
 
-  bustub->GenerateMockTable();
+  // bustub->GenerateMockTable();
 
-  if (bustub->buffer_pool_manager_ != nullptr) {
-    bustub->GenerateTestTable();
-  }
+  // if (bustub->buffer_pool_manager_ != nullptr) {
+  //   bustub->GenerateTestTable();
+  // }
 
   std::cout << "Welcome to the BusTub shell! Type \\help to learn more." << std::endl << std::endl;
 

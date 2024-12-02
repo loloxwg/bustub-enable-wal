@@ -15,6 +15,9 @@
 #include "catalog/schema.h"
 #include "catalog/table_generator.h"
 #include "common/bustub_instance.h"
+
+#include <recovery/log_recovery.h>
+
 #include "common/enums/statement_type.h"
 #include "common/exception.h"
 #include "common/util/string_util.h"
@@ -71,6 +74,9 @@ BustubInstance::BustubInstance(const std::string &db_file_name) {
 
   // Execution engine.
   execution_engine_ = new ExecutionEngine(buffer_pool_manager_, txn_manager_, catalog_);
+
+  // LogRec
+  log_recovery_ = new LogRecovery(disk_manager_, buffer_pool_manager_, catalog_);
 }
 
 BustubInstance::BustubInstance() {
@@ -219,6 +225,12 @@ auto BustubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
           throw bustub::Exception("Failed to create table");
         }
         WriteOneCell(fmt::format("Table created with id = {}", info->oid_), writer);
+        {
+          LogRecord log_record(txn->GetTransactionId(), txn->GetPrevLSN(), LogRecordType::CREATETABLE,
+                               create_stmt.table_, create_stmt.columns_);
+          lsn_t lsn = log_manager_->AppendLogRecord(&log_record);
+          txn->SetPrevLSN(lsn);
+        }
         continue;
       }
       case StatementType::INDEX_STATEMENT: {
