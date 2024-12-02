@@ -12,6 +12,8 @@
 
 #include "common/util/tuple_util.h"
 
+#include <algorithm>
+
 namespace bustub {
 
 void TupleUtil::Sort(const std::vector<Tuple> &tuples, std::vector<uint32_t> &pos,
