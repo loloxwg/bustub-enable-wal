@@ -65,7 +65,8 @@ void UpdateExecutor::Init() {
   for (const auto &index : indexs_) {
     if (index->is_primary_key_) {
       primary_key_index_ = index;
-      break;
+    } else {
+      non_primary_key_indexs_.emplace_back(index);
     }
   }
 
@@ -135,6 +136,22 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         values.emplace_back(expr->Evaluate(&updated_tuple, child_executor_->GetOutputSchema()));
       }
       Tuple new_tuple(values, schema);
+
+      for (auto index : non_primary_key_indexs_) {
+        auto schema = index->index_->GetKeySchema();
+        std::vector<uint32_t> col_idxs;
+        for (const auto &col : schema->GetColumns()) {
+          col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
+        }
+
+        Tuple new_key = new_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
+        Tuple old_key = updated_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
+        index->index_->DeleteEntry(old_key, updated_rid, txn);
+        if (!index->index_->InsertEntry(new_key, updated_rid, txn)) {
+          txn->SetTainted();
+          throw ExecutionException("Write-write confilct in insert_index when update executor");
+        };
+      }
 
       auto prev_link = txn_mgr->GetUndoLink(updated_rid);
       if (meta.ts_ != txn->GetTransactionTempTs()) {
@@ -253,20 +270,20 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     }
 
     // 开始插入新的元组并且需要维护相关的UndoLog
-    for (auto &tuple : tuples) {
+    for (auto &new_tuple : tuples) {
       auto primary_schema = primary_key_index_->index_->GetKeySchema();
       std::vector<uint32_t> col_idxs;
       for (const auto &col : primary_schema->GetColumns()) {
         col_idxs.emplace_back(table_info_->schema_.GetColIdx(col.GetName()));
       }
-      Tuple key = tuple.KeyFromTuple(table_info_->schema_, *primary_schema, col_idxs);
+      Tuple key = new_tuple.KeyFromTuple(table_info_->schema_, *primary_schema, col_idxs);
       std::vector<RID> result;
       primary_key_index_->index_->ScanKey(key, &result, txn);
 
       if (result.empty()) {
-        auto new_rid = heap_->InsertTuple({txn->GetTransactionId(), false}, tuple);
+        auto new_rid = heap_->InsertTuple({txn->GetTransactionId(), false}, new_tuple);
         if (!new_rid.has_value()) {
-          throw Exception(fmt::format("Insert Entry into table_heap error_1 {}", tuple.ToString(&schema)));
+          throw Exception(fmt::format("Insert Entry into table_heap error_1 {}", new_tuple.ToString(&schema)));
         }
         if (!MarkUndoVersionLink(exec_ctx_, new_rid.value())) {
           txn->SetTainted();
@@ -274,10 +291,14 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
                                                new_rid->GetSlotNum(), txn->GetTransactionIdHumanReadable()));
         }
         txn->AppendWriteSet(table_info_->oid_, new_rid.value());
+
+        //////////////////////////////////////////////////////////////////////////////////
         if (!primary_key_index_->index_->InsertEntry(key, new_rid.value(), txn)) {
           txn->SetTainted();
           throw ExecutionException("Insert Entry into primary_index failed2");
         }
+        ///////////////////////////////////////////////////////////////////////////////////
+
         UnmarkUndoVersionLink(exec_ctx_, new_rid.value());
       } else {
         RID rid = result[0];
@@ -312,7 +333,7 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
             auto old_tuple = ReconstructTuple(&schema, origin_tuple, origin_meta, {undo_log});
             if (old_tuple.has_value()) {
               auto new_undo_log =
-                  GenerateUndoLog(tuple, old_tuple.value(), &schema, undo_log.ts_, undo_log.prev_version_);
+                  GenerateUndoLog(new_tuple, old_tuple.value(), &schema, undo_log.ts_, undo_log.prev_version_);
               txn->ModifyUndoLog(undo_link->prev_log_idx_, new_undo_log);
             } else {
               assert(false);
@@ -334,14 +355,14 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         }
         CheckUpdateObject ch(origin_meta, origin_tuple, rid);
 
-        if (!heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, tuple, rid, ch)) {
+        if (!heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, new_tuple, rid, ch)) {
           txn->SetTainted();
           UnmarkUndoVersionLink(exec_ctx_, rid);
           throw ExecutionException(fmt::format("update_executor failed UpdateTupleInPlace for {} in txn{}, read_ts{}",
                                                origin_meta.ts_, txn->GetTransactionIdHumanReadable(),
                                                txn->GetReadTs()));
         }
-        heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, tuple, rid);
+        heap_->UpdateTupleInPlace({txn->GetTransactionTempTs(), false}, new_tuple, rid);
         UnmarkUndoVersionLink(exec_ctx_, rid);
       }
     }

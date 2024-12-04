@@ -148,7 +148,14 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       }
       Tuple key = inserted_tuple.KeyFromTuple(table_info_->schema_, *schema, col_idxs);
       if (!index->is_primary_key_) {
-        if (!index->index_->InsertEntry(key, r_rid, nullptr)) {
+        std::vector<RID> result;
+        /// For this semester 2023fall, the hash table is intend to support only unique keys. This means that the hash table should return false if the user tries to insert duplicate keys.
+        assert(result.size() <= 1);
+        index->index_->ScanKey(key, &result, txn);
+        if (!result.empty()) {
+          index->index_->DeleteEntry(key, r_rid, txn);
+        }
+        if (!index->index_->InsertEntry(key, r_rid, txn)) {
           txn->SetTainted();
           throw ExecutionException("Write-write confilct in insert_index");
         };

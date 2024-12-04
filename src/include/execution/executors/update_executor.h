@@ -70,6 +70,7 @@ class UpdateExecutor : public AbstractExecutor {
 
   TableHeap *heap_;
   std::vector<IndexInfo *> indexs_;
+  std::vector<IndexInfo *> non_primary_key_indexs_;
   bool called_{false};
   const IndexInfo *primary_key_index_{nullptr};
   bool modify_primary_key_{false};
