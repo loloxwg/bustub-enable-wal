@@ -52,7 +52,7 @@ auto TablePage::InsertTuple(const TupleMeta &meta, const Tuple &tuple) -> std::o
   auto tuple_id = num_tuples_;
   tuple_info_[tuple_id] = std::make_tuple(*tuple_offset, tuple.GetLength(), meta);
   num_tuples_++;
-  memcpy(page_start_ + *tuple_offset, tuple.data_.data(), tuple.GetLength());
+  memcpy(PAGE_START + *tuple_offset, tuple.data_.data(), tuple.GetLength());
   return tuple_id;
 }
 
@@ -76,7 +76,7 @@ auto TablePage::GetTuple(const RID &rid) const -> std::pair<TupleMeta, Tuple> {
   auto &[offset, size, meta] = tuple_info_[tuple_id];
   Tuple tuple;
   tuple.data_.resize(size);
-  memmove(tuple.data_.data(), page_start_ + offset, size);
+  memmove(tuple.data_.data(), PAGE_START + offset, size);
   tuple.rid_ = rid;
   return std::make_pair(meta, std::move(tuple));
 }
@@ -103,7 +103,7 @@ void TablePage::UpdateTupleInPlaceUnsafe(const TupleMeta &meta, const Tuple &tup
     num_deleted_tuples_++;
   }
   tuple_info_[tuple_id] = std::make_tuple(offset, size, meta);
-  memcpy(page_start_ + offset, tuple.data_.data(), tuple.GetLength());
+  memcpy(PAGE_START + offset, tuple.data_.data(), tuple.GetLength());
 }
 
 }  // namespace bustub

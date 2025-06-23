@@ -24,7 +24,7 @@
 
 namespace bustub {
 // NOLINTNEXTLINE
-TEST(TupleTest, DISABLED_TableHeapTest) {
+TEST(TupleTest, TableHeapTest) {
   // test1: parse create sql statement
   std::string create_stmt = "a varchar(20), b smallint, c bigint, d bool, e varchar(16)";
   Column col1{"a", TypeId::VARCHAR, 20};
@@ -42,16 +42,32 @@ TEST(TupleTest, DISABLED_TableHeapTest) {
   auto *table = new TableHeap(buffer_pool_manager);
 
   std::vector<RID> rid_v;
-  for (int i = 0; i < 5000; ++i) {
+  for (int i = 0; i < 100000; ++i) {
     auto rid = table->InsertTuple(TupleMeta{0, false}, tuple);
+    // Verify that insertion was successful
     rid_v.push_back(*rid);
   }
 
+  // Verify the number of inserted tuples
+  EXPECT_EQ(rid_v.size(), 100000);
+
+  // Verify that we can retrieve all inserted tuples
+  int tuple_count = 0;
   TableIterator itr = table->MakeIterator();
   while (!itr.IsEnd()) {
-    // std::cout << itr->ToString(schema) << std::endl;
+    // Verify tuple data matches what we inserted
+    auto rid = itr.GetRID();
+    EXPECT_EQ(rid.GetSlotNum(), rid_v[tuple_count].GetSlotNum());
+    EXPECT_EQ(rid.GetPageId(), rid_v[tuple_count].GetPageId());
+    auto [tuple_meta, fetched_tuple] = itr.GetTuple();
+    // 比较元组内容是否相同
+    EXPECT_TRUE(IsTupleContentEqual(fetched_tuple, tuple));
     ++itr;
+    tuple_count++;
   }
+
+  // Verify that we can iterate through all inserted tuples
+  EXPECT_EQ(tuple_count, 100000);
 
   disk_manager->ShutDown();
   remove("test.db");  // remove db file

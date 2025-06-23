@@ -49,6 +49,8 @@ static constexpr uint64_t TABLE_PAGE_HEADER_SIZE = 8;
  * | meta | data |
  */
 
+#define PAGE_START (char *)(this)
+
 class TablePage {
  public:
   /**
@@ -99,7 +101,7 @@ class TablePage {
 
  private:
   using TupleInfo = std::tuple<uint16_t, uint16_t, TupleMeta>;
-  char page_start_[0];
+  // char page_start_[0];
   page_id_t next_page_id_;
   uint16_t num_tuples_;
   uint16_t num_deleted_tuples_;
