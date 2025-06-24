@@ -34,22 +34,25 @@ TEST(TupleTest, TableHeapTest) {
   Column col5{"e", TypeId::VARCHAR, 16};
   std::vector<Column> cols{col1, col2, col3, col4, col5};
   Schema schema{cols};
-  Tuple tuple = ConstructTuple(&schema);
 
   // create transaction
   auto *disk_manager = new DiskManager("test.db");
   auto *buffer_pool_manager = new BufferPoolManager(50, disk_manager);
   auto *table = new TableHeap(buffer_pool_manager);
 
+  int nums = 1000000;
   std::vector<RID> rid_v;
-  for (int i = 0; i < 100000; ++i) {
+  std::vector<Tuple> tuple_v;
+  for (int i = 0; i < nums; ++i) {
+    Tuple tuple = ConstructTuple(&schema);
     auto rid = table->InsertTuple(TupleMeta{0, false}, tuple);
     // Verify that insertion was successful
     rid_v.push_back(*rid);
+    tuple_v.push_back(tuple);
   }
 
   // Verify the number of inserted tuples
-  EXPECT_EQ(rid_v.size(), 100000);
+  EXPECT_EQ(rid_v.size(), nums);
 
   // Verify that we can retrieve all inserted tuples
   int tuple_count = 0;
@@ -61,13 +64,13 @@ TEST(TupleTest, TableHeapTest) {
     EXPECT_EQ(rid.GetPageId(), rid_v[tuple_count].GetPageId());
     auto [tuple_meta, fetched_tuple] = itr.GetTuple();
     // 比较元组内容是否相同
-    EXPECT_TRUE(IsTupleContentEqual(fetched_tuple, tuple));
+    EXPECT_TRUE(IsTupleContentEqual(fetched_tuple, tuple_v[tuple_count]));
     ++itr;
     tuple_count++;
   }
 
   // Verify that we can iterate through all inserted tuples
-  EXPECT_EQ(tuple_count, 100000);
+  EXPECT_EQ(tuple_count, nums);
 
   disk_manager->ShutDown();
   remove("test.db");  // remove db file
