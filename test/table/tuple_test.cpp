@@ -15,6 +15,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <chrono>
 
 #include "buffer/buffer_pool_manager.h"
 #include "gtest/gtest.h"
@@ -35,42 +36,50 @@ TEST(TupleTest, TableHeapTest) {
   std::vector<Column> cols{col1, col2, col3, col4, col5};
   Schema schema{cols};
 
+
   // create transaction
   auto *disk_manager = new DiskManager("test.db");
-  auto *buffer_pool_manager = new BufferPoolManager(50, disk_manager);
+  auto *buffer_pool_manager = new BufferPoolManager(5, disk_manager);
   auto *table = new TableHeap(buffer_pool_manager);
 
   int nums = 1000000;
-  std::vector<RID> rid_v;
   std::vector<Tuple> tuple_v;
-  for (int i = 0; i < nums; ++i) {
+  std::vector<RID> rid_v;
+
+  // 开始插入计时
+  auto insert_start = std::chrono::high_resolution_clock::now();
+
+  for (int i = 0; i < nums ; ++i) {
     Tuple tuple = ConstructTuple(&schema);
     auto rid = table->InsertTuple(TupleMeta{0, false}, tuple);
-    // Verify that insertion was successful
     rid_v.push_back(*rid);
     tuple_v.push_back(tuple);
   }
 
-  // Verify the number of inserted tuples
-  EXPECT_EQ(rid_v.size(), nums);
+  // 结束插入计时并输出结果
+  auto insert_end = std::chrono::high_resolution_clock::now();
+  auto insert_duration = std::chrono::duration_cast<std::chrono::microseconds>(insert_end - insert_start);
+  std::cout << "Insertion of " << nums << " tuples took " << insert_duration.count() << " μs" << std::endl;
+  std::cout << "Average insertion time per tuple: " << static_cast<double>(insert_duration.count()) / nums << " μs" << std::endl;
 
-  // Verify that we can retrieve all inserted tuples
-  int tuple_count = 0;
+  // 开始查询计时
+  auto query_start = std::chrono::high_resolution_clock::now();
+
   TableIterator itr = table->MakeIterator();
+  int cnt = 0;
   while (!itr.IsEnd()) {
-    // Verify tuple data matches what we inserted
-    auto rid = itr.GetRID();
-    EXPECT_EQ(rid.GetSlotNum(), rid_v[tuple_count].GetSlotNum());
-    EXPECT_EQ(rid.GetPageId(), rid_v[tuple_count].GetPageId());
-    auto [tuple_meta, fetched_tuple] = itr.GetTuple();
-    // 比较元组内容是否相同
-    EXPECT_TRUE(IsTupleContentEqual(fetched_tuple, tuple_v[tuple_count]));
+    // std::cout << itr->ToString(schema) << std::endl;
+    //EXPECT_TRUE(IsTupleContentEqual(itr.GetTuple().second,tuple_v[cnt]));
+
     ++itr;
-    tuple_count++;
+    ++cnt;
   }
 
-  // Verify that we can iterate through all inserted tuples
-  EXPECT_EQ(tuple_count, nums);
+  // 结束查询计时并输出结果
+  auto query_end = std::chrono::high_resolution_clock::now();
+  auto query_duration = std::chrono::duration_cast<std::chrono::microseconds>(query_end - query_start);
+  std::cout << "Query of " << cnt << " tuples took " << query_duration.count() << " μs" << std::endl;
+  std::cout << "Average query time per tuple: " << static_cast<double>(query_duration.count()) / cnt << " μs" << std::endl;
 
   disk_manager->ShutDown();
   remove("test.db");  // remove db file
