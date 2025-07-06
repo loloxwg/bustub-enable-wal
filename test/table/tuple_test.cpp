@@ -39,10 +39,10 @@ TEST(TupleTest, TableHeapTest) {
 
   // create transaction
   auto *disk_manager = new DiskManager("test.db");
-  auto *buffer_pool_manager = new BufferPoolManager(5, disk_manager);
+  auto *buffer_pool_manager = new BufferPoolManager(64, disk_manager);
   auto *table = new TableHeap(buffer_pool_manager);
 
-  int nums = 1000000;
+  int nums = 10000000;
   std::vector<Tuple> tuple_v;
   std::vector<RID> rid_v;
   
@@ -74,6 +74,9 @@ TEST(TupleTest, TableHeapTest) {
     ++itr;
     ++cnt;
   }
+
+  printf("cnt: %d\n", cnt);
+  EXPECT_EQ(cnt, nums);
   
   // 结束查询计时并输出结果
   auto query_end = std::chrono::high_resolution_clock::now();
